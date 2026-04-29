@@ -13,16 +13,19 @@ import (
 func main() {
 	
 	config.ConnectDB()
-
 	app := fiber.New()
-
 	config.SetupCors(app)
+	repo := repository.NewRepository(config.DB)
+	authController := controllers.NewAuthController(repo)
 
-	_ = repository.NewRepository(config.DB)
 
+	// Rotas da API
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("API RA Kart Racing em Go está ONLINE! 🏎️💨")
 	})
+
+	authGroup := app.Group("/auth")
+	authGroup.Post("/login", authController.Login)
 
 	port := os.Getenv("PORT")
 	if port == "" {
