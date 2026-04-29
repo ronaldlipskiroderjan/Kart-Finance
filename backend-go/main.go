@@ -5,7 +5,9 @@ import (
 	"os"
 
 	"kartfinance-api/config"
+	"kartfinance-api/controllers"
 	"kartfinance-api/repository"
+	"kartfinance-api/services"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,10 +19,13 @@ func main() {
 	config.SetupCors(app)
 	repo := repository.NewRepository(config.DB)
 
+	closingService := services.NewClosingService(repo)
+
 	authController := controllers.NewAuthController(repo)
 	pilotController := controllers.NewPilotController(repo)
 	expenseController := controllers.NewExpenseController(repo)
 	reimbursementController := controllers.NewReimbursementController(repo)
+	closingController := controllers.NewClosingController(closingService)
 
 
 	// Rotas da API
@@ -51,6 +56,11 @@ func main() {
 	reimbursementGroup.Get("/", reimbursementController.GetAllReimbursements)
 	reimbursementGroup.Post("/", reimbursementController.CreateReimbursement)
 	reimbursementGroup.Delete("/:id", reimbursementController.DeleteReimbursement)
+
+	//Rotas de Fechamento
+	closingGroup := app.Group("/closing")
+	closingGroup.Get("/:pilot_id", closingController.GetSummary)
+	closingGroup.Post("/:pilot_id/finalize", closingController.Finalize)
 
 	port := os.Getenv("PORT")
 	if port == "" {
