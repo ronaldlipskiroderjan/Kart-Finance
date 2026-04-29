@@ -2,7 +2,7 @@ package repository
 
 import (
 	"time"
-	"kartfinance/backend-go/models"
+	"kartfinance-api/models"
 )
 
 func (r *AppRepository) FindExpensesByPilotAndDate(pilotId uint, start, end time.Time) ([]models.Expense, error) {
