@@ -19,7 +19,7 @@ func NewReimbursementController(repo *repository.AppRepository) *ReimbursementCo
 func (rc *ReimbursementController) GetAllReimbursements(c *fiber.Ctx) error {
 	var reimbursements []models.Reimbursement
 
-	if err := rc.Repo.BD.Find(&reimbursements).Error; err != nil {
+	if err := rc.Repo.DB.Find(&reimbursements).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(reimbursements)
@@ -48,7 +48,7 @@ func (rc *ReimbursementController) CreateReimbursement(c *fiber.Ctx) error {
 	}
 
 	//Salva no Banco
-	if err := rc.Repo.BD.Create(&reimbursement).Error; err != nil {
+	if err := rc.Repo.DB.Create(&reimbursement).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Erro ao salvar reembolso"})
 	}
 
@@ -59,7 +59,7 @@ func (rc *ReimbursementController) CreateReimbursement(c *fiber.Ctx) error {
 func (rc *ReimbursementController) DeleteReimbursement(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	result := rc.Repo.BD.Delete(&models.Reimbursement{}, id)
+	result := rc.Repo.DB.Delete(&models.Reimbursement{}, id)
 
 	if result.RowsAffected == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Reembolso não encontrado"})

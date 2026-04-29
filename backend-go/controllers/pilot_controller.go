@@ -3,7 +3,6 @@ package controllers
 import (
 	"kartfinance-api/models"
 	"kartfinance-api/repository"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
