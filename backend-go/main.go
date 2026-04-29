@@ -19,6 +19,8 @@ func main() {
 
 	authController := controllers.NewAuthController(repo)
 	pilotController := controllers.NewPilotController(repo)
+	expenseController := controllers.NewExpenseController(repo)
+	reimbursementController := controllers.NewReimbursementController(repo)
 
 
 	// Rotas da API
@@ -44,6 +46,11 @@ func main() {
 	expenseGroup.Post("/", expenseController.CreateExpense)
 	expenseGroup.Delete("/:id", expenseController.DeleteExpense)
 
+	//Rotas de Reembolso
+	reimbursementGroup := app.Group("/reimbursements")
+	reimbursementGroup.Get("/", reimbursementController.GetAllReimbursements)
+	reimbursementGroup.Post("/", reimbursementController.CreateReimbursement)
+	reimbursementGroup.Delete("/:id", reimbursementController.DeleteReimbursement)
 
 	port := os.Getenv("PORT")
 	if port == "" {
