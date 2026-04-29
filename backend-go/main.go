@@ -26,17 +26,23 @@ func main() {
 		return c.SendString("API RA Kart Racing em Go está ONLINE! 🏎️💨")
 	})
 
-	//Auth
+	//Rotas de Auth
 	authGroup := app.Group("/auth")
 	authGroup.Post("/login", authController.Login)
 
-	//Pilot
+	//Rotas de Pilots
 	pilotGroup := app.Group("/pilots")
 	pilotGroup.Get("/", pilotController.GetAllPilots)
 	pilotGroup.Get("/:id", pilotController.GetPilotById)
 	pilotGroup.Post("/", pilotController.CreatePilot)
 	pilotGroup.Put("/:id", pilotController.UpdatePilot)
 	pilotGroup.Delete("/:id", pilotController.DeletePilot)
+
+	//Rotas de Despesas
+	expenseGroup := app.Group("/expenses")
+	expenseGroup.Get("/", expenseController.GetAllExpenses)
+	expenseGroup.Post("/", expenseController.CreateExpense)
+	expenseGroup.Delete("/:id", expenseController.DeleteExpense)
 
 
 	port := os.Getenv("PORT")
