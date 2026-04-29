@@ -1,5 +1,9 @@
 package repository
-import "kartfinance-api/models"
+import (
+	"errors"
+	"kartfinance-api/models"
+	"gorm.io/gorm"
+)
 
 func (r *AppRepository) FindAdminByEmail(email string) (*models.Admin, error) {
 	var admin models.Admin
