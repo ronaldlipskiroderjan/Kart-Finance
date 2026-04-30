@@ -105,7 +105,7 @@ export default function Dashboard() {
         </div>
 
         {/* Search + refresh */}
-        <div className="px-4 lg:px-8 pb-4 flex gap-3">
+        <div className="px-4 pt-6 lg:pt-0 lg:px-8 pb-4 flex gap-3">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
             <input

@@ -38,8 +38,11 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 	if admin.Password == password {
 			return c.JSON(fiber.Map{
 				"success": true,
-				"name": admin.Name,
-				"email": admin.Email,
+				"id":      admin.ID,
+				"name":    admin.Name,
+				"email":   admin.Email,
+				"pixKey":  admin.PixKey,
+				"role":    admin.Role,
 			})
 	}
 

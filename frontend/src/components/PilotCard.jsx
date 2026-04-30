@@ -1,25 +1,49 @@
-import { useState } from 'react';
-import { formatBRL, currentYearMonth } from '../utils/formatters';
+import { formatBRL } from '../utils/formatters';
 import Badge from './ui/Badge';
-import { ChevronRight, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { ChevronRight, Calendar } from 'lucide-react';
 
 function getPilotMonthTotals(pilot) {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  let year = now.getFullYear();
+  let month = now.getMonth() + 1;
 
-  const expenses = (pilot.expenses ?? []).filter((e) => {
-    const d = new Date(e.createdAt);
+  const closingHistories = pilot.closingHistories || pilot.ClosingHistories || [];
+  
+  if (closingHistories.length > 0) {
+    const sortedHistory = [...closingHistories].sort((a, b) => {
+      const refA = a.monthReference || a.MonthReference;
+      const refB = b.monthReference || b.MonthReference;
+      return refB.localeCompare(refA);
+    });
+    const latest = sortedHistory[0];
+    const latestRef = latest.monthReference || latest.MonthReference;
+    const [lYear, lMonth] = latestRef.split('/').map(Number);
+    
+    if (year < lYear || (year === lYear && month <= lMonth)) {
+      month = lMonth + 1;
+      year = lYear;
+      if (month > 12) {
+        month = 1;
+        year++;
+      }
+    }
+  }
+
+  const rawExpenses = pilot.expenses || pilot.Expenses || [];
+  const rawReimbursements = pilot.reimbursements || pilot.Reimbursements || [];
+
+  const expenses = rawExpenses.filter((e) => {
+    const d = new Date(e.createdAt || e.CreatedAt);
     return d.getFullYear() === year && d.getMonth() + 1 === month;
   });
-  const reimbursements = (pilot.reimbursements ?? []).filter((r) => {
-    const d = new Date(r.createdAt);
+  const reimbursements = rawReimbursements.filter((r) => {
+    const d = new Date(r.createdAt || r.CreatedAt);
     return d.getFullYear() === year && d.getMonth() + 1 === month;
   });
 
-  const totalExpenses = expenses.reduce((s, e) => s + parseFloat(e.amount ?? 0), 0);
-  const totalReimbursements = reimbursements.reduce((s, r) => s + parseFloat(r.amount ?? 0), 0);
-  const baseFee = parseFloat(pilot.baseFee ?? 0);
+  const totalExpenses = expenses.reduce((s, e) => s + parseFloat(e.amount || e.Amount || 0), 0);
+  const totalReimbursements = reimbursements.reduce((s, r) => s + parseFloat(r.amount || r.Amount || 0), 0);
+  const baseFee = parseFloat(pilot.baseFee || pilot.BaseFee || 0);
   const total = baseFee + totalExpenses - totalReimbursements;
 
   return { baseFee, totalExpenses, totalReimbursements, total };
@@ -29,17 +53,23 @@ export default function PilotCard({ pilot, onSelect }) {
   const { baseFee, totalExpenses, totalReimbursements } = getPilotMonthTotals(pilot);
   const netExpenses = totalExpenses - totalReimbursements;
 
-  const previousDebt = (pilot.closingHistories ?? [])
-    .filter(h => h.status === 'PENDENTE' || h.status === 'ATRASADO')
-    .reduce((s, h) => s + parseFloat(h.totalAmount ?? 0), 0);
+  const closingHistories = pilot.closingHistories || pilot.ClosingHistories || [];
+  const previousDebt = closingHistories
+    .filter(h => {
+       const status = h.status || h.Status;
+       return status === 'PENDENTE' || status === 'ATRASADO';
+    })
+    .reduce((s, h) => s + parseFloat(h.totalAmount || h.TotalAmount || 0), 0);
 
   return (
     <button
       onClick={() => onSelect(pilot)}
-      className="glass-card p-5 w-full text-left hover:border-zinc-700 hover:bg-zinc-800/60 
+      className="relative overflow-hidden glass-card p-5 w-full text-left hover:border-zinc-700 hover:bg-zinc-800/60 
                  transition-all duration-200 active:scale-[0.98] group flex flex-col"
       aria-label={`Ver detalhes do piloto ${pilot.name}`}
     >
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
+      
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-4 w-full">
         <div className="min-w-0">
