@@ -1,0 +1,83 @@
+# =========================
+# Operating System Files
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =========================
+# IDEs and Editors
+# =========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# =========================
+# Frontend (Node.js / React)
+# =========================
+# dependencies
+/frontend/node_modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# build outputs
+/frontend/dist
+/frontend/build
+dist/
+build/
+.next/
+out/
+
+# test coverage
+coverage/
+
+# =========================
+# Backend (Go)
+# =========================
+# compiled output
+/backend-go/bin/
+/backend-go/main
+/backend-go/*.exe
+/backend-go/*.exe~
+/backend-go/*.dll
+/backend-go/*.so
+/backend-go/*.dylib
+/backend-go/*.test
+/backend-go/*.out
+
+# vendor directories
+/backend-go/vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# =========================
+# Logs and Databases
+# =========================
+*.log
+*.sqlite
+*.sqlite3
+*.db
