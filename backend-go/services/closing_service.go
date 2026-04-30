@@ -75,3 +75,22 @@ func (s *ClosingService) FinalizeClosing(pilotID uint, year int, month int) (*mo
 
 	return &history, nil
 }
+
+func (s *ClosingService) GetPilotHistory(pilotID uint) ([]models.ClosingHistory, error) {
+	return s.Repo.FindClosingHistoriesDesc(pilotID)
+}
+
+func (s *ClosingService) MarkAsPaid(closingID uint) error {
+	var history models.ClosingHistory
+
+	if err := s.Repo.DB.First(&history, closingID).Error; err != nil {
+		return err
+	}
+
+	now := time.Now()
+
+	return s.Repo.DB.Model(&history).Updates(models.ClosingHistory{
+		Status: 			models.StatusPago,
+		PaymentDate: 		&now,
+	}).Error
+}

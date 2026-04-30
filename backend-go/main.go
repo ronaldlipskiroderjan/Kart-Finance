@@ -61,6 +61,9 @@ func main() {
 	closingGroup := app.Group("/closing")
 	closingGroup.Get("/:pilot_id", closingController.GetSummary)
 	closingGroup.Post("/:pilot_id/finalize", closingController.Finalize)
+	closingGroup.Get("/:pilotId/history", closingController.GetHistory)
+	closingGroup.Put("/history/:closingId/pay", closingController.Pay)
+
 
 	port := os.Getenv("PORT")
 	if port == "" {
