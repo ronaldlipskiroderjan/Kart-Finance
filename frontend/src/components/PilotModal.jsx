@@ -18,6 +18,7 @@ import {
   AlertTriangle, Pencil, X, MessageCircle, Calendar
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const TABS = [
   { id: 'summary', label: 'Resumo', icon: BarChart2 },
@@ -28,11 +29,11 @@ const TABS = [
 
 export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('summary');
   const [summary, setSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState('');
-  const [isMonthPaid, setIsMonthPaid] = useState(false);
 
   // Expense form
   const [expForm, setExpForm] = useState({ description: '', amount: '' });
@@ -52,40 +53,51 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   // Delete pilot
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const { year, month } = currentYearMonth();
-  const monthLabel = formatMonthLabel(year, month);
+  const [activeYear, setActiveYear] = useState(() => currentYearMonth().year);
+  const [activeMonth, setActiveMonth] = useState(() => currentYearMonth().month);
+
+  const monthLabel = formatMonthLabel(activeYear, activeMonth);
 
   const fetchSummary = useCallback(async () => {
     if (!pilot) return;
     setLoadingSummary(true);
     setSummaryError('');
     try {
-      const res = await getMonthlySummary(pilot.id, year, month);
-      
       const hRes = await getPilotHistory(pilot.id);
-      const monthRef = `${year}/${month.toString().padStart(2, '0')}`;
-      const historyRecord = hRes.data?.find(h => h.monthReference === monthRef);
       
-      const isPaid = historyRecord && historyRecord.status === 'PAGO';
-      setIsMonthPaid(!!isPaid);
-
-      if (isPaid) {
-        setSummary({
-          ...res.data,
-          totalExpenses: 0,
-          totalReimbursements: 0,
-          totalAmount: res.data.baseFee,
-          previousDebt: 0
-        });
-      } else {
-        setSummary(res.data);
+      const current = currentYearMonth();
+      let newYear = current.year;
+      let newMonth = current.month;
+      
+      // Determine active cycle
+      if (hRes.data && hRes.data.length > 0) {
+         const sortedHistory = [...hRes.data].sort((a, b) => b.monthReference.localeCompare(a.monthReference));
+         const latest = sortedHistory[0];
+         const [lYear, lMonth] = latest.monthReference.split('/').map(Number);
+         
+         // If current real month is <= the latest closed month, advance to next month
+         if (current.year < lYear || (current.year === lYear && current.month <= lMonth)) {
+             newMonth = lMonth + 1;
+             newYear = lYear;
+             if (newMonth > 12) {
+                 newMonth = 1;
+                 newYear++;
+             }
+         }
       }
+      
+      setActiveYear(newYear);
+      setActiveMonth(newMonth);
+
+      const res = await getMonthlySummary(pilot.id, newYear, newMonth);
+      setSummary(res.data);
+
     } catch {
       setSummaryError('Não foi possível carregar o resumo.');
     } finally {
       setLoadingSummary(false);
     }
-  }, [pilot, year, month]);
+  }, [pilot]);
 
   useEffect(() => {
     if (isOpen && (activeTab === 'summary' || activeTab === 'close')) fetchSummary();
@@ -98,7 +110,6 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     setRmbMsg('');
     setCloseMsg('');
     setShowCloseConfirm(false);
-    setIsMonthPaid(false);
   }, [pilot?.id]);
 
   if (!pilot) return null;
@@ -118,12 +129,11 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     } finally { setExpLoading(false); }
   };
 
-  // ── Reimbursement submit ───────────────────────
   const handleReimbursement = async (e) => {
     e.preventDefault();
     setRmbLoading(true); setRmbMsg('');
     try {
-      await createReimbursement({ pilot: { id: pilot.id }, description: rmbForm.description, amount: parseFloat(rmbForm.amount) });
+      await createReimbursement({ pilot: { id: pilot.id }, description: rmbForm.description, amount: parseFloat(rmbForm.amount), year: activeYear, month: activeMonth });
       setRmbMsg('✅ Reembolso adicionado com sucesso!');
       setRmbForm({ description: '', amount: '' });
       onRefresh();
@@ -136,7 +146,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   const handleCloseMonth = async () => {
     setCloseLoading(true); setCloseMsg('');
     try {
-      await finalizeClosing(pilot.id, year, month);
+      await finalizeClosing(pilot.id, activeYear, activeMonth);
       setCloseMsg(`✅ Mês ${monthLabel} fechado com sucesso!`);
       setShowCloseConfirm(false);
       onRefresh();
@@ -177,6 +187,11 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       ] : []),
       ``,
       `✅ *Total a pagar: ${formatBRL(finalAmount)}*`,
+      ...(user?.pixKey ? [
+        ``,
+        `🔑 *Chave PIX:* ${user.pixKey}`,
+        `_(Por favor, envie o comprovante após o pagamento)_`
+      ] : [])
     ];
   };
 
@@ -256,24 +271,19 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
             <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">
               {monthLabel}
             </p>
-            {isMonthPaid && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-600/30">
-                <CheckSquare size={11} /> Pago
-              </span>
-            )}
           </div>
           {loadingSummary && <p className="text-zinc-500 text-sm">Carregando…</p>}
           {summaryError && <p className="text-red-400 text-sm">{summaryError}</p>}
           {summary && !loadingSummary && (
             <div className="space-y-4">
               {(() => {
-                const expensesDetail = isMonthPaid ? [] : (pilot.expenses || []).filter(e => {
+                const expensesDetail = (pilot.expenses || []).filter(e => {
                   const d = new Date(e.createdAt);
-                  return d.getFullYear() === year && d.getMonth() + 1 === month;
+                  return d.getFullYear() === activeYear && d.getMonth() + 1 === activeMonth;
                 });
-                const reimbursementsDetail = isMonthPaid ? [] : (pilot.reimbursements || []).filter(r => {
+                const reimbursementsDetail = (pilot.reimbursements || []).filter(r => {
                   const d = new Date(r.createdAt);
-                  return d.getFullYear() === year && d.getMonth() + 1 === month;
+                  return d.getFullYear() === activeYear && d.getMonth() + 1 === activeMonth;
                 });
                 const finalAmount = summary.finalAmount ?? summary.totalAmount;
                 const netExpenses = (summary.totalExpenses ?? 0) - (summary.totalReimbursements ?? 0);
@@ -388,121 +398,103 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
 
       {/* ── EXPENSE TAB ── */}
       {activeTab === 'expense' && (
-        isMonthPaid ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-zinc-400">Este mês já foi fechado e pago.</p>
+        <form onSubmit={handleExpense} className="space-y-4">
+          <div>
+            <label className="label">Descrição do Gasto</label>
+            <input value={expForm.description} onChange={(e) => setExpForm(p => ({ ...p, description: e.target.value }))}
+              className="input-field" placeholder="Ex: Troca de pneus" required />
           </div>
-        ) : (
-          <form onSubmit={handleExpense} className="space-y-4">
-            <div>
-              <label className="label">Descrição do Gasto</label>
-              <input value={expForm.description} onChange={(e) => setExpForm(p => ({ ...p, description: e.target.value }))}
-                className="input-field" placeholder="Ex: Troca de pneus" required />
-            </div>
-            <div>
-              <label className="label">Valor (R$)</label>
-              <input type="number" step="0.01" min="0.01" value={expForm.amount}
-                onChange={(e) => setExpForm(p => ({ ...p, amount: e.target.value }))}
-                className="input-field" placeholder="Ex: 350.00" required />
-            </div>
-            {expMsg && <p className="text-sm text-zinc-400">{expMsg}</p>}
-            <Button type="submit" variant="primary" className="w-full" disabled={expLoading}>
-              {expLoading ? 'Salvando…' : 'Adicionar Gasto'}
-            </Button>
-          </form>
-        )
+          <div>
+            <label className="label">Valor (R$)</label>
+            <input type="number" step="0.01" min="0.01" value={expForm.amount}
+              onChange={(e) => setExpForm(p => ({ ...p, amount: e.target.value }))}
+              className="input-field" placeholder="Ex: 350.00" required />
+          </div>
+          {expMsg && <p className="text-sm text-zinc-400">{expMsg}</p>}
+          <Button type="submit" variant="primary" className="w-full" disabled={expLoading}>
+            {expLoading ? 'Salvando…' : 'Adicionar Gasto'}
+          </Button>
+        </form>
       )}
 
       {/* ── REIMBURSEMENT TAB ── */}
       {activeTab === 'reimbursement' && (
-        isMonthPaid ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-zinc-400">Este mês já foi fechado e pago.</p>
+        <form onSubmit={handleReimbursement} className="space-y-4">
+          <div>
+            <label className="label">Descrição do Reembolso</label>
+            <input value={rmbForm.description} onChange={(e) => setRmbForm(p => ({ ...p, description: e.target.value }))}
+              className="input-field" placeholder="Ex: Devolução de taxa" required />
           </div>
-        ) : (
-          <form onSubmit={handleReimbursement} className="space-y-4">
-            <div>
-              <label className="label">Descrição do Reembolso</label>
-              <input value={rmbForm.description} onChange={(e) => setRmbForm(p => ({ ...p, description: e.target.value }))}
-                className="input-field" placeholder="Ex: Devolução de taxa" required />
-            </div>
-            <div>
-              <label className="label">Valor (R$)</label>
-              <input type="number" step="0.01" min="0.01" value={rmbForm.amount}
-                onChange={(e) => setRmbForm(p => ({ ...p, amount: e.target.value }))}
-                className="input-field" placeholder="Ex: 150.00" required />
-            </div>
-            {rmbMsg && <p className="text-sm text-zinc-400">{rmbMsg}</p>}
-            <Button type="submit" variant="primary" className="w-full" disabled={rmbLoading}>
-              {rmbLoading ? 'Salvando…' : 'Adicionar Reembolso'}
-            </Button>
-          </form>
-        )
+          <div>
+            <label className="label">Valor (R$)</label>
+            <input type="number" step="0.01" min="0.01" value={rmbForm.amount}
+              onChange={(e) => setRmbForm(p => ({ ...p, amount: e.target.value }))}
+              className="input-field" placeholder="Ex: 150.00" required />
+          </div>
+          {rmbMsg && <p className="text-sm text-zinc-400">{rmbMsg}</p>}
+          <Button type="submit" variant="primary" className="w-full" disabled={rmbLoading}>
+            {rmbLoading ? 'Salvando…' : 'Adicionar Reembolso'}
+          </Button>
+        </form>
       )}
 
       {/* ── CLOSE MONTH TAB ── */}
       {activeTab === 'close' && (
-        isMonthPaid ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-zinc-400">Este mês já foi fechado e pago.</p>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {summary && (
-              <div className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700/50">
-                <p className="text-xs text-zinc-500 mb-2 uppercase font-semibold">Prévia da Mensagem (WhatsApp)</p>
-                <div className="bg-zinc-900/50 p-3 rounded-lg text-sm text-zinc-300 font-mono whitespace-pre-wrap select-all">
-                  {getWhatsAppMessageLines().join('\n')}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const text = encodeURIComponent(getWhatsAppMessageLines().join('\n'));
-                    window.open(`https://wa.me/?text=${text}`, '_blank');
-                  }}
-                  className="w-full mt-3 flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-500/25 
-                             text-emerald-400 border border-emerald-600/40 rounded-xl py-2.5 text-sm font-medium 
-                             transition-all duration-200 active:scale-95"
-                >
-                  <MessageCircle size={16} />
-                  📲 Enviar Cobrança ao Piloto
-                </button>
+        <div className="space-y-5">
+          {summary && (
+            <div className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700/50">
+              <p className="text-xs text-zinc-500 mb-2 uppercase font-semibold">Prévia da Mensagem (WhatsApp)</p>
+              <div className="bg-zinc-900/50 p-3 rounded-lg text-sm text-zinc-300 font-mono whitespace-pre-wrap select-all">
+                {getWhatsAppMessageLines().join('\n')}
               </div>
-            )}
-
-            <div className="bg-amber-900/20 border border-amber-700/40 rounded-xl p-4 flex gap-3">
-              <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-amber-300 mb-1">Atenção</p>
-                <p className="text-xs text-amber-400/80">
-                  Esta ação irá registrar o fechamento do mês de <strong>{monthLabel}</strong> para{' '}
-                  <strong>{pilot.name}</strong>. Uma vez fechado, os valores ficam salvos no histórico.
-                </p>
-              </div>
-            </div>
-
-            {closeMsg && <p className="text-sm text-zinc-400">{closeMsg}</p>}
-
-            {!showCloseConfirm ? (
-              <Button
-                variant="danger"
-                className="w-full"
-                onClick={() => setShowCloseConfirm(true)}
+              <button
+                type="button"
+                onClick={() => {
+                  const text = encodeURIComponent(getWhatsAppMessageLines().join('\n'));
+                  window.open(`https://wa.me/?text=${text}`, '_blank');
+                }}
+                className="w-full mt-3 flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-500/25 
+                           text-emerald-400 border border-emerald-600/40 rounded-xl py-2.5 text-sm font-medium 
+                           transition-all duration-200 active:scale-95"
               >
-                Fechar Mês de {monthLabel}
-              </Button>
-            ) : (
-              <div className="flex gap-3">
-                <Button variant="secondary" className="flex-1" onClick={() => setShowCloseConfirm(false)}>
-                  Cancelar
-                </Button>
-                <Button variant="primary" className="flex-1" disabled={closeLoading} onClick={handleCloseMonth}>
-                  {closeLoading ? 'Fechando…' : 'Confirmar'}
-                </Button>
-              </div>
-            )}
+                <MessageCircle size={16} />
+                📲 Enviar Cobrança ao Piloto
+              </button>
+            </div>
+          )}
+
+          <div className="bg-amber-900/20 border border-amber-700/40 rounded-xl p-4 flex gap-3">
+            <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-300 mb-1">Atenção</p>
+              <p className="text-xs text-amber-400/80">
+                Esta ação irá registrar o fechamento do mês de <strong>{monthLabel}</strong> para{' '}
+                <strong>{pilot.name}</strong>. Uma vez fechado, os valores ficam salvos no histórico.
+              </p>
+            </div>
           </div>
-        )
+
+          {closeMsg && <p className="text-sm text-zinc-400">{closeMsg}</p>}
+
+          {!showCloseConfirm ? (
+            <Button
+              variant="danger"
+              className="w-full"
+              onClick={() => setShowCloseConfirm(true)}
+            >
+              Fechar Mês de {monthLabel}
+            </Button>
+          ) : (
+            <div className="flex gap-3">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowCloseConfirm(false)}>
+                Cancelar
+              </Button>
+              <Button variant="primary" className="flex-1" disabled={closeLoading} onClick={handleCloseMonth}>
+                {closeLoading ? 'Fechando…' : 'Confirmar'}
+              </Button>
+            </div>
+          )}
+        </div>
       )}
     </Modal>
   );

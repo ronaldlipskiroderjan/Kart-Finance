@@ -24,6 +24,7 @@ func main() {
 	jobs.InitCron(repo, closingService)
 
 	authController := controllers.NewAuthController(repo)
+	adminController := controllers.NewAdminController(repo)
 	pilotController := controllers.NewPilotController(repo)
 	expenseController := controllers.NewExpenseController(repo)
 	reimbursementController := controllers.NewReimbursementController(repo)
@@ -38,6 +39,14 @@ func main() {
 	//Rotas de Auth
 	authGroup := app.Group("/auth")
 	authGroup.Post("/login", authController.Login)
+
+	//Rotas de Admin
+	adminGroup := app.Group("/admins")
+	adminGroup.Get("/", adminController.GetAllAdmins)
+	adminGroup.Post("/", adminController.CreateAdmin)
+	adminGroup.Put("/:id", adminController.UpdateAdmin)
+	adminGroup.Put("/:id/password", adminController.UpdatePassword)
+	adminGroup.Delete("/:id", adminController.DeleteAdmin)
 
 	//Rotas de Pilots
 	pilotGroup := app.Group("/pilots")

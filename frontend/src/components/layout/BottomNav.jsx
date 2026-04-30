@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon } from 'lucide-react';
 
 export default function BottomNav() {
   return (
@@ -18,6 +18,17 @@ export default function BottomNav() {
       >
         <LayoutDashboard size={22} />
         <span className="text-[10px] font-medium">Dashboard</span>
+      </NavLink>
+      <NavLink
+        to="/settings"
+        className={({ isActive }) =>
+          `flex flex-col items-center gap-1 py-2 px-6 rounded-xl transition-colors ${
+            isActive ? 'text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'
+          }`
+        }
+      >
+        <SettingsIcon size={22} />
+        <span className="text-[10px] font-medium">Config.</span>
       </NavLink>
     </nav>
   );

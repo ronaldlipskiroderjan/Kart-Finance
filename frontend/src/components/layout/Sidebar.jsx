@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, History, LogOut } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Sidebar() {
@@ -37,6 +37,19 @@ export default function Sidebar() {
         >
           <LayoutDashboard size={18} />
           Dashboard
+        </NavLink>
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-emerald-500/15 text-emerald-400'
+                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+            }`
+          }
+        >
+          <SettingsIcon size={18} />
+          Configurações
         </NavLink>
       </nav>
 

@@ -41,7 +41,13 @@ export function AuthProvider({ children }) {
         throw new Error(data.message ?? 'Email ou senha incorretos');
       }
 
-      const userData = { name: data.name, email: data.email };
+      const userData = { 
+        id: data.id,
+        name: data.name, 
+        email: data.email,
+        pixKey: data.pixKey,
+        role: data.role
+      };
       saveUser(userData);
       setUser(userData);
       return userData;
