@@ -18,7 +18,7 @@ func NewPilotController(repo *repository.AppRepository) *PilotController {
 // GetAllPilots - GET /pilots
 func (pc *PilotController) GetAllPilots(c *fiber.Ctx) error {
 	var pilots []models.Pilot
-	if err := pc.Repo.DB.Find(&pilots).Error; err != nil {
+	if err := pc.Repo.DB.Preload("Expenses").Preload("Reimbursements").Find(&pilots).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(pilots)
@@ -29,7 +29,7 @@ func (pc *PilotController) GetPilotById(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var pilot models.Pilot
 
-	if arr := pc.Repo.DB.First(&pilot, id).Error; arr != nil {
+	if arr := pc.Repo.DB.Preload("Expenses").Preload("Reimbursements").First(&pilot, id).Error; arr != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Piloto não encontrado"})
 	}
 	return c.JSON(pilot)

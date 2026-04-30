@@ -4,6 +4,7 @@ import Button from './ui/Button';
 import Badge from './ui/Badge';
 import {
   getMonthlySummary,
+  getPilotHistory,
   finalizeClosing,
   createExpense,
   createReimbursement,
@@ -31,6 +32,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   const [summary, setSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState('');
+  const [isMonthPaid, setIsMonthPaid] = useState(false);
 
   // Expense form
   const [expForm, setExpForm] = useState({ description: '', amount: '' });
@@ -59,7 +61,25 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     setSummaryError('');
     try {
       const res = await getMonthlySummary(pilot.id, year, month);
-      setSummary(res.data);
+      
+      const hRes = await getPilotHistory(pilot.id);
+      const monthRef = `${year}/${month.toString().padStart(2, '0')}`;
+      const historyRecord = hRes.data?.find(h => h.monthReference === monthRef);
+      
+      const isPaid = historyRecord && historyRecord.status === 'PAGO';
+      setIsMonthPaid(!!isPaid);
+
+      if (isPaid) {
+        setSummary({
+          ...res.data,
+          totalExpenses: 0,
+          totalReimbursements: 0,
+          totalAmount: res.data.baseFee,
+          previousDebt: 0
+        });
+      } else {
+        setSummary(res.data);
+      }
     } catch {
       setSummaryError('Não foi possível carregar o resumo.');
     } finally {
@@ -78,6 +98,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     setRmbMsg('');
     setCloseMsg('');
     setShowCloseConfirm(false);
+    setIsMonthPaid(false);
   }, [pilot?.id]);
 
   if (!pilot) return null;
@@ -204,19 +225,26 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       {/* ── SUMMARY TAB ── */}
       {activeTab === 'summary' && (
         <div>
-          <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3 font-medium">
-            {monthLabel}
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">
+              {monthLabel}
+            </p>
+            {isMonthPaid && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-600/30">
+                <CheckSquare size={11} /> Pago
+              </span>
+            )}
+          </div>
           {loadingSummary && <p className="text-zinc-500 text-sm">Carregando…</p>}
           {summaryError && <p className="text-red-400 text-sm">{summaryError}</p>}
           {summary && !loadingSummary && (
             <div className="space-y-4">
               {(() => {
-                const expensesDetail = (pilot.expenses || []).filter(e => {
+                const expensesDetail = isMonthPaid ? [] : (pilot.expenses || []).filter(e => {
                   const d = new Date(e.createdAt);
                   return d.getFullYear() === year && d.getMonth() + 1 === month;
                 });
-                const reimbursementsDetail = (pilot.reimbursements || []).filter(r => {
+                const reimbursementsDetail = isMonthPaid ? [] : (pilot.reimbursements || []).filter(r => {
                   const d = new Date(r.createdAt);
                   return d.getFullYear() === year && d.getMonth() + 1 === month;
                 });
@@ -339,81 +367,99 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
 
       {/* ── EXPENSE TAB ── */}
       {activeTab === 'expense' && (
-        <form onSubmit={handleExpense} className="space-y-4">
-          <div>
-            <label className="label">Descrição do Gasto</label>
-            <input value={expForm.description} onChange={(e) => setExpForm(p => ({ ...p, description: e.target.value }))}
-              className="input-field" placeholder="Ex: Troca de pneus" required />
+        isMonthPaid ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-zinc-400">Este mês já foi fechado e pago.</p>
           </div>
-          <div>
-            <label className="label">Valor (R$)</label>
-            <input type="number" step="0.01" min="0.01" value={expForm.amount}
-              onChange={(e) => setExpForm(p => ({ ...p, amount: e.target.value }))}
-              className="input-field" placeholder="Ex: 350.00" required />
-          </div>
-          {expMsg && <p className="text-sm text-zinc-400">{expMsg}</p>}
-          <Button type="submit" variant="primary" className="w-full" disabled={expLoading}>
-            {expLoading ? 'Salvando…' : 'Adicionar Gasto'}
-          </Button>
-        </form>
+        ) : (
+          <form onSubmit={handleExpense} className="space-y-4">
+            <div>
+              <label className="label">Descrição do Gasto</label>
+              <input value={expForm.description} onChange={(e) => setExpForm(p => ({ ...p, description: e.target.value }))}
+                className="input-field" placeholder="Ex: Troca de pneus" required />
+            </div>
+            <div>
+              <label className="label">Valor (R$)</label>
+              <input type="number" step="0.01" min="0.01" value={expForm.amount}
+                onChange={(e) => setExpForm(p => ({ ...p, amount: e.target.value }))}
+                className="input-field" placeholder="Ex: 350.00" required />
+            </div>
+            {expMsg && <p className="text-sm text-zinc-400">{expMsg}</p>}
+            <Button type="submit" variant="primary" className="w-full" disabled={expLoading}>
+              {expLoading ? 'Salvando…' : 'Adicionar Gasto'}
+            </Button>
+          </form>
+        )
       )}
 
       {/* ── REIMBURSEMENT TAB ── */}
       {activeTab === 'reimbursement' && (
-        <form onSubmit={handleReimbursement} className="space-y-4">
-          <div>
-            <label className="label">Descrição do Reembolso</label>
-            <input value={rmbForm.description} onChange={(e) => setRmbForm(p => ({ ...p, description: e.target.value }))}
-              className="input-field" placeholder="Ex: Devolução de taxa" required />
+        isMonthPaid ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-zinc-400">Este mês já foi fechado e pago.</p>
           </div>
-          <div>
-            <label className="label">Valor (R$)</label>
-            <input type="number" step="0.01" min="0.01" value={rmbForm.amount}
-              onChange={(e) => setRmbForm(p => ({ ...p, amount: e.target.value }))}
-              className="input-field" placeholder="Ex: 150.00" required />
-          </div>
-          {rmbMsg && <p className="text-sm text-zinc-400">{rmbMsg}</p>}
-          <Button type="submit" variant="primary" className="w-full" disabled={rmbLoading}>
-            {rmbLoading ? 'Salvando…' : 'Adicionar Reembolso'}
-          </Button>
-        </form>
+        ) : (
+          <form onSubmit={handleReimbursement} className="space-y-4">
+            <div>
+              <label className="label">Descrição do Reembolso</label>
+              <input value={rmbForm.description} onChange={(e) => setRmbForm(p => ({ ...p, description: e.target.value }))}
+                className="input-field" placeholder="Ex: Devolução de taxa" required />
+            </div>
+            <div>
+              <label className="label">Valor (R$)</label>
+              <input type="number" step="0.01" min="0.01" value={rmbForm.amount}
+                onChange={(e) => setRmbForm(p => ({ ...p, amount: e.target.value }))}
+                className="input-field" placeholder="Ex: 150.00" required />
+            </div>
+            {rmbMsg && <p className="text-sm text-zinc-400">{rmbMsg}</p>}
+            <Button type="submit" variant="primary" className="w-full" disabled={rmbLoading}>
+              {rmbLoading ? 'Salvando…' : 'Adicionar Reembolso'}
+            </Button>
+          </form>
+        )
       )}
 
       {/* ── CLOSE MONTH TAB ── */}
       {activeTab === 'close' && (
-        <div className="space-y-5">
-          <div className="bg-amber-900/20 border border-amber-700/40 rounded-xl p-4 flex gap-3">
-            <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-amber-300 mb-1">Atenção</p>
-              <p className="text-xs text-amber-400/80">
-                Esta ação irá registrar o fechamento do mês de <strong>{monthLabel}</strong> para{' '}
-                <strong>{pilot.name}</strong>. Uma vez fechado, os valores ficam salvos no histórico.
-              </p>
-            </div>
+        isMonthPaid ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-zinc-400">Este mês já foi fechado e pago.</p>
           </div>
-
-          {closeMsg && <p className="text-sm text-zinc-400">{closeMsg}</p>}
-
-          {!showCloseConfirm ? (
-            <Button
-              variant="danger"
-              className="w-full"
-              onClick={() => setShowCloseConfirm(true)}
-            >
-              Fechar Mês de {monthLabel}
-            </Button>
-          ) : (
-            <div className="flex gap-3">
-              <Button variant="secondary" className="flex-1" onClick={() => setShowCloseConfirm(false)}>
-                Cancelar
-              </Button>
-              <Button variant="primary" className="flex-1" disabled={closeLoading} onClick={handleCloseMonth}>
-                {closeLoading ? 'Fechando…' : 'Confirmar'}
-              </Button>
+        ) : (
+          <div className="space-y-5">
+            <div className="bg-amber-900/20 border border-amber-700/40 rounded-xl p-4 flex gap-3">
+              <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-300 mb-1">Atenção</p>
+                <p className="text-xs text-amber-400/80">
+                  Esta ação irá registrar o fechamento do mês de <strong>{monthLabel}</strong> para{' '}
+                  <strong>{pilot.name}</strong>. Uma vez fechado, os valores ficam salvos no histórico.
+                </p>
+              </div>
             </div>
-          )}
-        </div>
+
+            {closeMsg && <p className="text-sm text-zinc-400">{closeMsg}</p>}
+
+            {!showCloseConfirm ? (
+              <Button
+                variant="danger"
+                className="w-full"
+                onClick={() => setShowCloseConfirm(true)}
+              >
+                Fechar Mês de {monthLabel}
+              </Button>
+            ) : (
+              <div className="flex gap-3">
+                <Button variant="secondary" className="flex-1" onClick={() => setShowCloseConfirm(false)}>
+                  Cancelar
+                </Button>
+                <Button variant="primary" className="flex-1" disabled={closeLoading} onClick={handleCloseMonth}>
+                  {closeLoading ? 'Fechando…' : 'Confirmar'}
+                </Button>
+              </div>
+            )}
+          </div>
+        )
       )}
     </Modal>
   );
