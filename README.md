@@ -1,5 +1,6 @@
 🏎️ RA Kart Racing - Gestão Financeira e Controle de Pilotos
-Sobre o Projeto
+
+Sobre o Projeto:
 O RA Kart Racing é um sistema web desenvolvido sob medida para solucionar as necessidades reais de gestão financeira de uma equipe de kart. O foco principal da aplicação é automatizar e centralizar o controle de pilotos, facilitando o registro de despesas operacionais (como compra de peças e manutenções) e a emissão de reembolsos.
 
 O grande diferencial do sistema é o seu motor de "Fechamento de Mês", que cruza todas as tabelas financeiras, calcula automaticamente os saldos de cada piloto e gera um histórico detalhado de faturas (pagas e pendentes), eliminando o trabalho manual e garantindo a integridade do caixa da empresa.
