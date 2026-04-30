@@ -49,6 +49,10 @@ export default function Dashboard() {
       );
       
       setPilots(pilotsWithStatus);
+      setSelectedPilot(prev => {
+        if (!prev) return prev;
+        return pilotsWithStatus.find(p => p.id === prev.id) || prev;
+      });
     } catch {
       setError('Não foi possível carregar os pilotos.');
     } finally {

@@ -249,6 +249,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                   return d.getFullYear() === year && d.getMonth() + 1 === month;
                 });
                 const finalAmount = summary.totalAmount ?? summary.finalAmount;
+                const netExpenses = (summary.totalExpenses ?? 0) - (summary.totalReimbursements ?? 0);
                 return (
                   <>
                     {/* Breakdown cards */}
@@ -259,11 +260,9 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                 </div>
                 <div className="bg-zinc-800/60 rounded-xl p-3">
                   <p className="text-xs text-zinc-500 mb-1">Gastos Extras</p>
-                  <p className="text-sm font-semibold text-red-400">{formatBRL(summary.totalExpenses)}</p>
-                </div>
-                <div className="bg-zinc-800/60 rounded-xl p-3">
-                  <p className="text-xs text-zinc-500 mb-1">Reembolsos</p>
-                  <p className="text-sm font-semibold text-emerald-400">-{formatBRL(summary.totalReimbursements)}</p>
+                  <p className={`text-sm font-semibold ${netExpenses > 0 ? 'text-red-400' : (netExpenses < 0 ? 'text-emerald-400' : 'text-zinc-500')}`}>
+                    {netExpenses > 0 ? '+' : ''}{formatBRL(netExpenses)}
+                  </p>
                 </div>
                 {/* Dívida Anterior */}
                 {(summary.previousDebt ?? 0) > 0 && (
@@ -280,8 +279,6 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                   <span className="text-zinc-500">Mensalidade</span>
                   <span className="text-zinc-600 mx-1">+</span>
                   <span className="text-red-400">Extras</span>
-                  <span className="text-zinc-600 mx-1">−</span>
-                  <span className="text-emerald-400">Reemb.</span>
                   {(summary.previousDebt ?? 0) > 0 && (
                     <><span className="text-zinc-600 mx-1">+</span><span className="text-orange-400">Dívida</span></>
                   )}
@@ -299,8 +296,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                     `📅 Período: ${monthLabel}`,
                     ``,
                     `💰 Mensalidade: ${formatBRL(summary.baseFee)}`,
-                    `📈 Gastos Extras: ${formatBRL(summary.totalExpenses)}`,
-                    `📉 Reembolsos: -${formatBRL(summary.totalReimbursements)}`,
+                    `📈 Gastos Extras: ${netExpenses > 0 ? '+' : ''}${formatBRL(netExpenses)}`,
                     ...(debt > 0 ? [`⚠️ Dívida Anterior: ${formatBRL(debt)}`] : []),
                     ``,
                     `✅ *Total a pagar: ${formatBRL(finalAmount)}*`,
