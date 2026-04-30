@@ -29,15 +29,19 @@ export default function PilotCard({ pilot, onSelect }) {
   const { baseFee, totalExpenses, totalReimbursements } = getPilotMonthTotals(pilot);
   const netExpenses = totalExpenses - totalReimbursements;
 
+  const previousDebt = (pilot.closingHistories ?? [])
+    .filter(h => h.status === 'PENDENTE' || h.status === 'ATRASADO')
+    .reduce((s, h) => s + parseFloat(h.totalAmount ?? 0), 0);
+
   return (
     <button
       onClick={() => onSelect(pilot)}
       className="glass-card p-5 w-full text-left hover:border-zinc-700 hover:bg-zinc-800/60 
-                 transition-all duration-200 active:scale-[0.98] group"
+                 transition-all duration-200 active:scale-[0.98] group flex flex-col"
       aria-label={`Ver detalhes do piloto ${pilot.name}`}
     >
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="flex items-start justify-between gap-3 mb-4 w-full">
         <div className="min-w-0">
           <h3 className="font-semibold text-zinc-100 text-base truncate">{pilot.name}</h3>
           <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -63,7 +67,7 @@ export default function PilotCard({ pilot, onSelect }) {
       </div>
 
       {/* Fee & totals */}
-      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-zinc-800">
+      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-zinc-800 w-full mt-auto">
         <div>
           <p className="text-xs text-zinc-500 mb-0.5">Mensalidade</p>
           <p className="text-sm font-medium text-zinc-300">{formatBRL(baseFee)}</p>
@@ -74,6 +78,14 @@ export default function PilotCard({ pilot, onSelect }) {
             {netExpenses > 0 ? '+' : ''}{formatBRL(netExpenses)}
           </p>
         </div>
+        {previousDebt > 0 && (
+          <div className="col-span-2 mt-1 bg-orange-900/20 border border-orange-700/30 rounded-lg p-2.5">
+            <p className="text-xs text-orange-400 mb-0.5 font-medium flex items-center gap-1">
+              ⚠ Dívida Acumulada
+            </p>
+            <p className="text-sm font-semibold text-orange-400">+{formatBRL(previousDebt)}</p>
+          </div>
+        )}
       </div>
     </button>
   );

@@ -88,7 +88,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   }, [pilot, year, month]);
 
   useEffect(() => {
-    if (isOpen && activeTab === 'summary') fetchSummary();
+    if (isOpen && (activeTab === 'summary' || activeTab === 'close')) fetchSummary();
   }, [isOpen, fetchSummary, activeTab]);
 
   // Reset on pilot change
@@ -158,6 +158,27 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       alert('Erro ao excluir piloto.');
     } finally { setDeleteLoading(false); }
   };
+  const getWhatsAppMessageLines = () => {
+    if (!summary) return [];
+    const finalAmount = summary.finalAmount ?? summary.totalAmount;
+    const netExpenses = (summary.totalExpenses ?? 0) - (summary.totalReimbursements ?? 0);
+    const debt = summary.previousDebt ?? 0;
+    
+    return [
+      `📋 *Fatura RA Kart Racing — ${pilot.name}*`,
+      `📅 Período: ${monthLabel}`,
+      ``,
+      `💰 Mensalidade: ${formatBRL(summary.baseFee)}`,
+      `📈 Gastos Extras: ${netExpenses > 0 ? '+' : ''}${formatBRL(netExpenses)}`,
+      ...(debt > 0 ? [
+        ``,
+        `🚨 *ATENÇÃO*: O valor total está mais alto devido ao atraso de ${summary.unpaidMonthsCount || 1} mês(es) anterior(es).`,
+        `⚠️ Dívida Acumulada: ${formatBRL(debt)}`
+      ] : []),
+      ``,
+      `✅ *Total a pagar: ${formatBRL(finalAmount)}*`,
+    ];
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="" size="lg">
@@ -167,6 +188,12 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
           <h2 className="text-xl font-bold text-zinc-100">{pilot.name}</h2>
           <div className="flex items-center gap-2 mt-1.5">
             {pilot.category && <Badge label={pilot.category} />}
+            {pilot.status && (
+              <Badge 
+                label={pilot.status === 'ATRASADO' ? 'Em Atraso' : (pilot.status === 'PENDENTE' ? 'Pendente' : 'Em Dia')} 
+                color={pilot.status === 'ATRASADO' ? 'red' : (pilot.status === 'PENDENTE' ? 'amber' : 'green')} 
+              />
+            )}
             {pilot.closingDay && (
               <div className="flex items-center gap-1 text-xs text-zinc-500">
                 <Calendar size={12} />
@@ -208,7 +235,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
           return (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); if (tab.id === 'summary') fetchSummary(); }}
+              onClick={() => { setActiveTab(tab.id); if (tab.id === 'summary' || tab.id === 'close') fetchSummary(); }}
               className={`flex-1 flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
                 activeTab === tab.id
                   ? 'bg-zinc-900 text-emerald-400 shadow-sm'
@@ -248,7 +275,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                   const d = new Date(r.createdAt);
                   return d.getFullYear() === year && d.getMonth() + 1 === month;
                 });
-                const finalAmount = summary.totalAmount ?? summary.finalAmount;
+                const finalAmount = summary.finalAmount ?? summary.totalAmount;
                 const netExpenses = (summary.totalExpenses ?? 0) - (summary.totalReimbursements ?? 0);
                 return (
                   <>
@@ -264,14 +291,17 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                     {netExpenses > 0 ? '+' : ''}{formatBRL(netExpenses)}
                   </p>
                 </div>
-                {/* Dívida Anterior */}
-                {(summary.previousDebt ?? 0) > 0 && (
-                  <div className="bg-orange-900/30 border border-orange-700/40 rounded-xl p-3">
-                    <p className="text-xs text-orange-400 mb-1">⚠ Dívida Anterior</p>
-                    <p className="text-sm font-semibold text-orange-400">+{formatBRL(summary.previousDebt)}</p>
-                  </div>
-                )}
               </div>
+
+              {/* Dívida Anterior Full Width */}
+              {(summary.previousDebt ?? 0) > 0 && (
+                <div className="flex items-center justify-between bg-orange-900/20 rounded-xl px-4 py-3 border border-orange-700/30">
+                  <div className="text-xs text-orange-400 font-medium flex items-center gap-1.5">
+                    <span className="text-sm">⚠</span> Dívida Acumulada ({summary.unpaidMonthsCount || 1} mês/meses)
+                  </div>
+                  <p className="text-base font-semibold text-orange-400">+{formatBRL(summary.previousDebt)}</p>
+                </div>
+              )}
 
               {/* Divider + Total */}
               <div className="flex items-center justify-between bg-zinc-800/80 rounded-xl px-4 py-3 border border-zinc-700/50">
@@ -290,18 +320,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
               <button
                 type="button"
                 onClick={() => {
-                  const debt = summary.previousDebt ?? 0;
-                  const lines = [
-                    `📋 *Fatura RA Kart Racing — ${pilot.name}*`,
-                    `📅 Período: ${monthLabel}`,
-                    ``,
-                    `💰 Mensalidade: ${formatBRL(summary.baseFee)}`,
-                    `📈 Gastos Extras: ${netExpenses > 0 ? '+' : ''}${formatBRL(netExpenses)}`,
-                    ...(debt > 0 ? [`⚠️ Dívida Anterior: ${formatBRL(debt)}`] : []),
-                    ``,
-                    `✅ *Total a pagar: ${formatBRL(finalAmount)}*`,
-                  ];
-                  const text = encodeURIComponent(lines.join('\n'));
+                  const text = encodeURIComponent(getWhatsAppMessageLines().join('\n'));
                   window.open(`https://wa.me/?text=${text}`, '_blank');
                 }}
                 className="w-full flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-500/25 
@@ -319,7 +338,10 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                   <div className="space-y-1.5">
                     {expensesDetail.map((e) => (
                       <div key={e.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
-                        <span className="text-sm text-zinc-300">{e.description}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-zinc-300">{e.description}</span>
+                          <span className="text-xs text-zinc-500">{formatDate(e.createdAt)}</span>
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-red-400">+{formatBRL(e.amount)}</span>
                           <button onClick={() => { deleteExpense(e.id).then(() => { fetchSummary(); onRefresh(); }); }}
@@ -340,7 +362,10 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                   <div className="space-y-1.5">
                     {reimbursementsDetail.map((r) => (
                       <div key={r.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
-                        <span className="text-sm text-zinc-300">{r.description}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-zinc-300">{r.description}</span>
+                          <span className="text-xs text-zinc-500">{formatDate(r.createdAt)}</span>
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-green-400">-{formatBRL(r.amount)}</span>
                           <button onClick={() => { deleteReimbursement(r.id).then(() => { fetchSummary(); onRefresh(); }); }}
@@ -423,6 +448,28 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
           </div>
         ) : (
           <div className="space-y-5">
+            {summary && (
+              <div className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700/50">
+                <p className="text-xs text-zinc-500 mb-2 uppercase font-semibold">Prévia da Mensagem (WhatsApp)</p>
+                <div className="bg-zinc-900/50 p-3 rounded-lg text-sm text-zinc-300 font-mono whitespace-pre-wrap select-all">
+                  {getWhatsAppMessageLines().join('\n')}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = encodeURIComponent(getWhatsAppMessageLines().join('\n'));
+                    window.open(`https://wa.me/?text=${text}`, '_blank');
+                  }}
+                  className="w-full mt-3 flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-500/25 
+                             text-emerald-400 border border-emerald-600/40 rounded-xl py-2.5 text-sm font-medium 
+                             transition-all duration-200 active:scale-95"
+                >
+                  <MessageCircle size={16} />
+                  📲 Enviar Cobrança ao Piloto
+                </button>
+              </div>
+            )}
+
             <div className="bg-amber-900/20 border border-amber-700/40 rounded-xl p-4 flex gap-3">
               <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
               <div>
