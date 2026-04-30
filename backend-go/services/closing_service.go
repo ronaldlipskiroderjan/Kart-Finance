@@ -89,8 +89,15 @@ func (s *ClosingService) MarkAsPaid(closingID uint) error {
 
 	now := time.Now()
 
-	return s.Repo.DB.Model(&history).Updates(models.ClosingHistory{
-		Status: 			models.StatusPago,
-		PaymentDate: 		&now,
-	}).Error
+	if err := s.Repo.DB.Model(&history).Updates(models.ClosingHistory{
+		Status:      models.StatusPago,
+		PaymentDate: &now,
+	}).Error; err != nil {
+		return err
+	}
+
+	// Atualiza o dia do fechamento (ClosingDay) do piloto para o dia do pagamento atual
+	return s.Repo.DB.Model(&models.Pilot{}).
+		Where("id = ?", history.PilotID).
+		Update("closing_day", now.Day()).Error
 }

@@ -26,7 +26,8 @@ function getPilotMonthTotals(pilot) {
 }
 
 export default function PilotCard({ pilot, onSelect }) {
-  const { baseFee, totalExpenses, totalReimbursements, total } = getPilotMonthTotals(pilot);
+  const { baseFee, totalExpenses, totalReimbursements } = getPilotMonthTotals(pilot);
+  const netExpenses = totalExpenses - totalReimbursements;
 
   return (
     <button
@@ -68,28 +69,12 @@ export default function PilotCard({ pilot, onSelect }) {
           <p className="text-sm font-medium text-zinc-300">{formatBRL(baseFee)}</p>
         </div>
         <div>
-          <p className="text-xs text-zinc-500 mb-0.5">Total do Mês</p>
-          <p className="text-sm font-semibold text-emerald-400">{formatBRL(total)}</p>
+          <p className="text-xs text-zinc-500 mb-0.5">Gastos Extras</p>
+          <p className={`text-sm font-semibold ${netExpenses > 0 ? 'text-red-400' : (netExpenses < 0 ? 'text-emerald-400' : 'text-zinc-500')}`}>
+            {netExpenses > 0 ? '+' : ''}{formatBRL(netExpenses)}
+          </p>
         </div>
       </div>
-
-      {/* Extra indicators */}
-      {(totalExpenses > 0 || totalReimbursements > 0) && (
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-zinc-800/60">
-          {totalExpenses > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-red-400">
-              <TrendingUp size={13} />
-              <span>+{formatBRL(totalExpenses)}</span>
-            </div>
-          )}
-          {totalReimbursements > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-green-400">
-              <TrendingDown size={13} />
-              <span>-{formatBRL(totalReimbursements)}</span>
-            </div>
-          )}
-        </div>
-      )}
     </button>
   );
 }

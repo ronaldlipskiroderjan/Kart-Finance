@@ -6,6 +6,7 @@ import (
 
 	"kartfinance-api/config"
 	"kartfinance-api/controllers"
+	"kartfinance-api/jobs"
 	"kartfinance-api/repository"
 	"kartfinance-api/services"
 
@@ -20,6 +21,7 @@ func main() {
 	repo := repository.NewRepository(config.DB)
 
 	closingService := services.NewClosingService(repo)
+	jobs.InitCron(repo, closingService)
 
 	authController := controllers.NewAuthController(repo)
 	pilotController := controllers.NewPilotController(repo)
