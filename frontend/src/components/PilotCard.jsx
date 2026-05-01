@@ -4,30 +4,8 @@ import { ChevronRight, Calendar } from 'lucide-react';
 
 function getPilotMonthTotals(pilot) {
   const now = new Date();
-  let year = now.getFullYear();
-  let month = now.getMonth() + 1;
-
-  const closingHistories = pilot.closingHistories || pilot.ClosingHistories || [];
-  
-  if (closingHistories.length > 0) {
-    const sortedHistory = [...closingHistories].sort((a, b) => {
-      const refA = a.monthReference || a.MonthReference;
-      const refB = b.monthReference || b.MonthReference;
-      return refB.localeCompare(refA);
-    });
-    const latest = sortedHistory[0];
-    const latestRef = latest.monthReference || latest.MonthReference;
-    const [lYear, lMonth] = latestRef.split('/').map(Number);
-    
-    if (year < lYear || (year === lYear && month <= lMonth)) {
-      month = lMonth + 1;
-      year = lYear;
-      if (month > 12) {
-        month = 1;
-        year++;
-      }
-    }
-  }
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
 
   const rawExpenses = pilot.expenses || pilot.Expenses || [];
   const rawReimbursements = pilot.reimbursements || pilot.Reimbursements || [];
