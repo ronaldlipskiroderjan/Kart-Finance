@@ -26,6 +26,7 @@ function Settings() {
     pixKey: user?.pixKey || ''
   });
 
+
   const [showNewAdmin, setShowNewAdmin] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
@@ -201,10 +202,10 @@ function Settings() {
                     <label className="label">Chave PIX</label>
                     <input type="text" value={accountForm.pixKey} onChange={e => setAccountForm(p => ({ ...p, pixKey: e.target.value }))} className="input-field" placeholder="Ex: email@banco.com.br, celular, ou CPF" />
                     <p className="text-xs text-zinc-500 mt-2">
-                      Esta chave será incluída automaticamente nas mensagens de cobrança enviadas aos pilotos.
+                      Esta chave é usada para gerar o QR Code e o código PIX nas mensagens de cobrança.
                     </p>
                   </div>
-                  
+
                   <div className="pt-2">
                     <Button type="submit" variant="secondary" className="flex items-center gap-2">
                       <Save size={16} /> Salvar Chave PIX

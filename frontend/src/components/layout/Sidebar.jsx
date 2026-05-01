@@ -1,15 +1,19 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings as SettingsIcon, LogOut } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, LogOut, BarChart2, CalendarDays } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+
+const NAV_LINKS = [
+  { to: '/', end: true, icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/analytics', icon: BarChart2, label: 'Analytics' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendário' },
+  { to: '/settings', icon: SettingsIcon, label: 'Configurações' },
+];
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
+  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
 
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-zinc-900 border-r border-zinc-800 min-h-screen sticky top-0">
@@ -24,40 +28,30 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-              isActive
-                ? 'bg-emerald-500/15 text-emerald-400'
-                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
-            }`
-          }
-        >
-          <LayoutDashboard size={18} />
-          Dashboard
-        </NavLink>
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-              isActive
-                ? 'bg-emerald-500/15 text-emerald-400'
-                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
-            }`
-          }
-        >
-          <SettingsIcon size={18} />
-          Configurações
-        </NavLink>
+        {NAV_LINKS.map(({ to, end, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-emerald-500/15 text-emerald-400'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+              }`
+            }
+          >
+            <Icon size={18} />
+            {label}
+          </NavLink>
+        ))}
       </nav>
 
       {/* Logout */}
       <div className="px-3 py-4 border-t border-zinc-800">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium 
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium
                      text-zinc-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
         >
           <LogOut size={18} />
