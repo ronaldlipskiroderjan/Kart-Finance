@@ -63,33 +63,11 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     setLoadingSummary(true);
     setSummaryError('');
     try {
-      const hRes = await getPilotHistory(pilot.id);
-      
       const current = currentYearMonth();
-      let newYear = current.year;
-      let newMonth = current.month;
-      
-      // Determine active cycle
-      if (hRes.data && hRes.data.length > 0) {
-         const sortedHistory = [...hRes.data].sort((a, b) => b.monthReference.localeCompare(a.monthReference));
-         const latest = sortedHistory[0];
-         const [lYear, lMonth] = latest.monthReference.split('/').map(Number);
-         
-         // If current real month is <= the latest closed month, advance to next month
-         if (current.year < lYear || (current.year === lYear && current.month <= lMonth)) {
-             newMonth = lMonth + 1;
-             newYear = lYear;
-             if (newMonth > 12) {
-                 newMonth = 1;
-                 newYear++;
-             }
-         }
-      }
-      
-      setActiveYear(newYear);
-      setActiveMonth(newMonth);
+      setActiveYear(current.year);
+      setActiveMonth(current.month);
 
-      const res = await getMonthlySummary(pilot.id, newYear, newMonth);
+      const res = await getMonthlySummary(pilot.id, current.year, current.month);
       setSummary(res.data);
 
     } catch {
