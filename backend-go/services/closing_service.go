@@ -41,14 +41,10 @@ func (s *ClosingService) GenerateMonthlySummary(pilotID uint, year int, month in
 
 	totalAmount := pilot.BaseFee + totalExpenses - totalReimbursements
 
-	// Calculate previous debt: ATRASADO always counts; PENDENTE only after DueDate has passed
+	// Calculate previous debt: only closings already marked ATRASADO count as debt
 	var previousDebt float64
 	var unpaidHistories []models.ClosingHistory
-	now := time.Now()
-	s.Repo.DB.Where(
-		"pilot_id = ? AND (status = ? OR (status = ? AND due_date < ?))",
-		pilotID, models.StatusAtrasado, models.StatusPendente, now,
-	).Find(&unpaidHistories)
+	s.Repo.DB.Where("pilot_id = ? AND status = ?", pilotID, models.StatusAtrasado).Find(&unpaidHistories)
 
 	for _, h := range unpaidHistories {
 		previousDebt += h.TotalAmount
