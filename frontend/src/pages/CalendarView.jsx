@@ -12,7 +12,7 @@ function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate()
 function getFirstDay(year, month) { return new Date(year, month - 1, 1).getDay(); }
 
 function getStatusForPilotMonth(pilot, year, month) {
-  const ref = `${year}-${String(month).padStart(2, '0')}`;
+  const ref = `${year}/${String(month).padStart(2, '0')}`;
   const hist = (pilot.closingHistories || []).find(h => h.monthReference === ref);
   return hist?.status || null;
 }
