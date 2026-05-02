@@ -74,7 +74,7 @@ export default function Analytics() {
 
   const now = new Date();
   const allClosings = pilots.flatMap(p => p.closingHistories || []);
-  const thisMonthRef = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonthRef = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const totalPending = allClosings
     .filter(h => h.status === 'PENDENTE' || h.status === 'ATRASADO')
@@ -89,13 +89,13 @@ export default function Analytics() {
   // Last 6 months chart data
   const monthlyData = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    const ref = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const ref = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
     const label = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(d).replace('.', '');
-    const paid = allClosings.filter(h => h.status === 'PAGO' && h.monthReference === ref)
+    const pago = allClosings.filter(h => h.status === 'PAGO' && h.monthReference === ref)
       .reduce((s, h) => s + (h.totalAmount || 0), 0);
     const pending = allClosings.filter(h => (h.status === 'PENDENTE' || h.status === 'ATRASADO') && h.monthReference === ref)
       .reduce((s, h) => s + (h.totalAmount || 0), 0);
-    return { label, paid, pendente: pending };
+    return { label, pago, pendente: pending };
   });
 
   // Category distribution
@@ -176,8 +176,8 @@ export default function Analytics() {
                   <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false}
                     tickFormatter={v => v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : `R$${v}`} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend formatter={v => <span className="text-xs text-zinc-400">{v === 'paid' ? 'Pago' : 'Pendente'}</span>} />
-                  <Area type="monotone" dataKey="paid" name="paid" stroke="#10b981" fill="url(#gradPaid)" strokeWidth={2.5} dot={{ fill: '#10b981', r: 3 }} />
+                  <Legend formatter={v => <span className="text-xs text-zinc-400">{v === 'pago' ? 'Pago' : 'Pendente'}</span>} />
+                  <Area type="monotone" dataKey="pago" name="pago" stroke="#10b981" fill="url(#gradPaid)" strokeWidth={2.5} dot={{ fill: '#10b981', r: 3 }} />
                   <Area type="monotone" dataKey="pendente" name="pendente" stroke="#f59e0b" fill="url(#gradPending)" strokeWidth={2.5} dot={{ fill: '#f59e0b', r: 3 }} />
                 </AreaChart>
               </ResponsiveContainer>

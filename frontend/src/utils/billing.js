@@ -29,7 +29,7 @@ export function getActiveBillingMonth(pilot) {
     return { year: currentYear, month: currentMonth };
   }
 
-  const parts = refs[0].split('-').map(Number);
+  const parts = refs[0].split(/[-\/]/).map(Number);
   if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
     return { year: currentYear, month: currentMonth };
   }

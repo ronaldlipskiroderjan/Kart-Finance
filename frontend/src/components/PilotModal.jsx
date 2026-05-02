@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import Badge from './ui/Badge';
@@ -56,6 +56,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
 
   const [activeYear, setActiveYear] = useState(() => currentYearMonth().year);
   const [activeMonth, setActiveMonth] = useState(() => currentYearMonth().month);
+  const skipAutoAdvanceRef = useRef(false);
 
   const monthLabel = formatMonthLabel(activeYear, activeMonth);
   const isAtCurrentMonth = isSameMonth(activeYear, activeMonth);
@@ -78,6 +79,10 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   // When pilot changes: set smart month and reset form state
   useEffect(() => {
     if (!pilot) return;
+    if (skipAutoAdvanceRef.current) {
+      skipAutoAdvanceRef.current = false;
+      return;
+    }
     const { year, month } = getActiveBillingMonth(pilot);
     setActiveYear(year);
     setActiveMonth(month);
@@ -146,6 +151,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       await finalizeClosing(pilot.id, activeYear, activeMonth);
       setCloseMsg(`✅ Mês ${monthLabel} fechado com sucesso!`);
       setShowCloseConfirm(false);
+      skipAutoAdvanceRef.current = true;
       onRefresh();
     } catch (err) {
       setCloseMsg(`❌ ${err.response?.data ?? 'Erro ao fechar mês.'}`);
