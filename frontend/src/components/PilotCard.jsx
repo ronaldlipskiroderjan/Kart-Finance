@@ -50,10 +50,7 @@ export default function PilotCard({ pilot, onSelect }) {
 
   const closingHistories = pilot.closingHistories || pilot.ClosingHistories || [];
   const previousDebt = closingHistories
-    .filter(h => {
-      const status = h.status || h.Status;
-      return status === 'PENDENTE' || status === 'ATRASADO';
-    })
+    .filter(h => (h.status || h.Status) === 'ATRASADO')
     .reduce((s, h) => s + parseFloat(h.totalAmount || h.TotalAmount || 0), 0);
 
   const barColor = STATUS_BAR[pilot.status] || 'bg-emerald-500';

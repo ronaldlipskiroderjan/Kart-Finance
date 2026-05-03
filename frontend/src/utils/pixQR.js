@@ -24,12 +24,14 @@ function sanitizeName(name) {
 }
 
 export function generatePixPayload({ pixKey, merchantName = 'RA Kart Racing', amount = 0, city = 'SAO PAULO' }) {
+  const trimmedKey = (pixKey || '').trim();
   const name = sanitizeName(merchantName);
   const sanitizedCity = sanitizeName(city).substring(0, 15);
 
-  const pixKeyBlock = tlv('00', 'BR.GOV.BCB.PIX') + tlv('01', pixKey);
+  const pixKeyBlock = tlv('00', 'BR.GOV.BCB.PIX') + tlv('01', trimmedKey);
   const merchantAccount = tlv('26', pixKeyBlock);
-  const amountField = amount > 0 ? tlv('54', Number(amount).toFixed(2)) : '';
+  const numAmount = Number(amount);
+  const amountField = Number.isFinite(numAmount) && numAmount > 0 ? tlv('54', numAmount.toFixed(2)) : '';
   const additionalData = tlv('62', tlv('05', '***'));
 
   const payload = [

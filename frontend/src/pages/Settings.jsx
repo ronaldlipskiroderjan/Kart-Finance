@@ -58,7 +58,7 @@ function Settings() {
     e.preventDefault();
     setMsg({ text: 'Salvando...', type: 'info' });
     try {
-      await updateAdmin(user.id, accountForm);
+      await updateAdmin(user.id, { ...accountForm, pixKey: accountForm.pixKey.trim() });
       setMsg({ text: 'Informações atualizadas com sucesso! Faça login novamente para atualizar no painel.', type: 'success' });
     } catch (err) {
       setMsg({ text: err.response?.data?.error || 'Erro ao atualizar informações', type: 'error' });
