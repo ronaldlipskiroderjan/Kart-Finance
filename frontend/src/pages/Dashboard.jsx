@@ -194,7 +194,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
-            className="px-4 lg:px-8 pb-3 grid grid-cols-2 lg:grid-cols-4 gap-2.5"
+            className="px-4 lg:px-8 pt-4 lg:pt-0 pb-3 grid grid-cols-2 lg:grid-cols-4 gap-2.5"
           >
             <StatCard icon={Users} label="Total Pilotos" value={pilots.length} color="bg-blue-500/15" />
             <StatCard icon={DollarSign} label="A Receber" value={formatBRL(totalPendente)} color="bg-amber-500/15" />
