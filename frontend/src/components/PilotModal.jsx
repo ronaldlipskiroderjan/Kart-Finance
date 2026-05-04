@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import Badge from './ui/Badge';
-import PIXQRModal from './PIXQRModal';
 import CommHistoryModal from './CommHistoryModal';
 import {
   getMonthlySummary, finalizeClosing,
@@ -12,13 +11,12 @@ import { formatBRL, formatDate, formatMonthLabel, currentYearMonth } from '../ut
 import { getActiveBillingMonth, isSameMonth } from '../utils/billing';
 import {
   PlusCircle, MinusCircle, CheckSquare, BarChart2, Trash2, History,
-  AlertTriangle, Pencil, X, MessageCircle, Calendar, QrCode,
+  AlertTriangle, Pencil, X, MessageCircle, Calendar,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCommHistory } from '../context/CommHistoryContext';
-import { generatePixPayload } from '../utils/pixQR';
 
 const TABS = [
   { id: 'summary', label: 'Resumo', icon: BarChart2 },
@@ -51,7 +49,6 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
 
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const [showPIXModal, setShowPIXModal] = useState(false);
   const [showCommHistory, setShowCommHistory] = useState(false);
 
   const [activeYear, setActiveYear] = useState(() => currentYearMonth().year);
@@ -177,14 +174,6 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     const netExpenses = (summary.totalExpenses ?? 0) - (summary.totalReimbursements ?? 0);
     const debt = summary.previousDebt ?? 0;
 
-    const pixPayload = user?.pixKey
-      ? generatePixPayload({
-          pixKey: user.pixKey,
-          merchantName: user.name || 'RA Kart Racing',
-          amount: finalAmount,
-        })
-      : null;
-
     return [
       `📋 *Fatura RA Kart Racing — ${pilot.name}*`,
       `📅 Período: ${monthLabel}`,
@@ -198,10 +187,9 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       ] : []),
       ``,
       `✅ *Total a pagar: ${formatBRL(finalAmount)}*`,
-      ...(pixPayload ? [
+      ...(user?.pixKey ? [
         ``,
-        `📲 *Código PIX (Copia e Cola):*`,
-        pixPayload,
+        `🔑 *Chave PIX:* ${user.pixKey.trim()}`,
         `_(Por favor, envie o comprovante após o pagamento)_`
       ] : [])
     ];
@@ -248,15 +236,6 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            {user?.pixKey && (
-              <button
-                onClick={() => setShowPIXModal(true)}
-                className="text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 rounded-lg p-1.5 transition-colors"
-                title="QR Code PIX"
-              >
-                <QrCode size={16} />
-              </button>
-            )}
             <button
               onClick={() => setShowCommHistory(true)}
               className="text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 rounded-lg p-1.5 transition-colors"
@@ -385,30 +364,16 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                   </div>
 
                   {/* Action buttons row */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSendWhatsApp}
-                      className="flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-500/25
-                                 text-emerald-400 border border-emerald-600/40 rounded-xl py-2.5 text-sm font-medium
-                                 transition-all duration-200 active:scale-95"
-                    >
-                      <MessageCircle size={15} />
-                      Cobrar via WA
-                    </button>
-                    {user?.pixKey && (
-                      <button
-                        type="button"
-                        onClick={() => setShowPIXModal(true)}
-                        className="flex items-center justify-center gap-2 bg-blue-600/15 hover:bg-blue-500/25
-                                   text-blue-400 border border-blue-600/40 rounded-xl py-2.5 text-sm font-medium
-                                   transition-all duration-200 active:scale-95"
-                      >
-                        <QrCode size={15} />
-                        QR Code PIX
-                      </button>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSendWhatsApp}
+                    className="w-full flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-500/25
+                               text-emerald-400 border border-emerald-600/40 rounded-xl py-2.5 text-sm font-medium
+                               transition-all duration-200 active:scale-95"
+                  >
+                    <MessageCircle size={15} />
+                    Cobrar via WA
+                  </button>
 
                   {expensesDetail?.length > 0 && (
                     <div>
@@ -537,30 +502,16 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                 <div className="bg-zinc-900/50 p-3 rounded-lg text-sm text-zinc-300 font-mono whitespace-pre-wrap break-all select-all overflow-hidden">
                   {getWhatsAppMessageLines().join('\n')}
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-3">
-                  <button
-                    type="button"
-                    onClick={handleSendWhatsApp}
-                    className="flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-500/25
-                               text-emerald-400 border border-emerald-600/40 rounded-xl py-2.5 text-sm font-medium
-                               transition-all duration-200 active:scale-95"
-                  >
-                    <MessageCircle size={15} />
-                    Enviar via WhatsApp
-                  </button>
-                  {user?.pixKey && (
-                    <button
-                      type="button"
-                      onClick={() => setShowPIXModal(true)}
-                      className="flex items-center justify-center gap-2 bg-blue-600/15 hover:bg-blue-500/25
-                                 text-blue-400 border border-blue-600/40 rounded-xl py-2.5 text-sm font-medium
-                                 transition-all duration-200 active:scale-95"
-                    >
-                      <QrCode size={15} />
-                      QR Code PIX
-                    </button>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={handleSendWhatsApp}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600/15 hover:bg-emerald-500/25
+                             text-emerald-400 border border-emerald-600/40 rounded-xl py-2.5 text-sm font-medium
+                             transition-all duration-200 active:scale-95 mt-3"
+                >
+                  <MessageCircle size={15} />
+                  Enviar via WhatsApp
+                </button>
               </div>
             )}
 
@@ -592,17 +543,6 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
           </div>
         )}
       </Modal>
-
-      {/* PIX QR Modal */}
-      <PIXQRModal
-        isOpen={showPIXModal}
-        onClose={() => setShowPIXModal(false)}
-        pixKey={user?.pixKey}
-        merchantName={user?.name || 'RA Kart Racing'}
-        amount={finalAmount}
-        pilotName={pilot.name}
-        monthLabel={monthLabel}
-      />
 
       {/* Communication History Modal */}
       <CommHistoryModal

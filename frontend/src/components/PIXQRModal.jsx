@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import Modal from './ui/Modal';
 import { QRCode } from 'react-qr-code';
-import { generatePixPayload } from '../utils/pixQR';
-import { Copy, Check, QrCode, Sparkles } from 'lucide-react';
+import { generatePixPayload, validatePixKey } from '../utils/pixQR';
+import { Copy, Check, QrCode, Sparkles, AlertTriangle } from 'lucide-react';
 import { formatBRL } from '../utils/formatters';
 
 export default function PIXQRModal({ isOpen, onClose, pixKey, merchantName, amount, pilotName, monthLabel }) {
@@ -10,6 +10,7 @@ export default function PIXQRModal({ isOpen, onClose, pixKey, merchantName, amou
 
   if (!isOpen || !pixKey) return null;
 
+  const keyValidation = validatePixKey(pixKey);
   const payload = generatePixPayload({
     pixKey,
     merchantName: merchantName || 'RA Kart Racing',
@@ -55,6 +56,16 @@ export default function PIXQRModal({ isOpen, onClose, pixKey, merchantName, amou
             <Sparkles size={12} className="text-white" />
           </div>
         </div>
+
+        {/* Aviso de chave inválida */}
+        {!keyValidation.valid && (
+          <div className="w-full flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+            <AlertTriangle size={15} className="text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-amber-300 leading-relaxed">
+              {keyValidation.hint || 'O formato da chave PIX pode estar incorreto. Verifique nas Configurações.'}
+            </p>
+          </div>
+        )}
 
         {/* Amount */}
         {amount > 0 && (

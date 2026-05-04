@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
 import { getAdmins, updateAdmin, deleteAdmin } from '../services/api';
-import { User, Users, Save, Plus, Trash2, Loader, QrCode, Lock, Mail, LogOut } from 'lucide-react';
+import { User, Users, Save, Plus, Trash2, Loader, QrCode, Lock, Mail, LogOut, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { validatePixKey } from '../utils/pixQR';
 import Button from '../components/ui/Button';
 import NewAdminModal from '../components/NewAdminModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
@@ -200,10 +201,18 @@ function Settings() {
                 <form onSubmit={handleAccountSave} className="space-y-4">
                   <div>
                     <label className="label">Chave PIX</label>
-                    <input type="text" value={accountForm.pixKey} onChange={e => setAccountForm(p => ({ ...p, pixKey: e.target.value }))} className="input-field" placeholder="Ex: email@banco.com.br, celular, ou CPF" />
-                    <p className="text-xs text-zinc-500 mt-2">
-                      Esta chave é usada para gerar o QR Code e o código PIX nas mensagens de cobrança.
-                    </p>
+                    <input type="text" value={accountForm.pixKey} onChange={e => setAccountForm(p => ({ ...p, pixKey: e.target.value }))} className="input-field" placeholder="Ex: email@banco.com.br, +5511999999999 ou CPF" />
+                    {accountForm.pixKey.trim() && (() => {
+                      const v = validatePixKey(accountForm.pixKey);
+                      return v.valid
+                        ? <p className="flex items-center gap-1.5 text-xs text-emerald-400 mt-2"><CheckCircle2 size={13} /> Chave {v.type} válida</p>
+                        : <p className="flex items-center gap-1.5 text-xs text-amber-400 mt-2"><AlertCircle size={13} /> {v.hint || 'Formato não reconhecido'}</p>;
+                    })()}
+                    {!accountForm.pixKey.trim() && (
+                      <p className="text-xs text-zinc-500 mt-2">
+                        Formatos aceitos: e-mail, telefone (+55DDD...), CPF, CNPJ ou chave aleatória.
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-2">
