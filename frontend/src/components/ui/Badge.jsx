@@ -11,6 +11,7 @@ const CATEGORY_COLORS = {
   '125cc': 'emerald',
   'F4': 'blue',
   'Cadete': 'green',
+  'Shifter': 'amber',
 };
 
 export default function Badge({ label, color }) {

@@ -72,7 +72,10 @@ export default function PilotCard({ pilot, onSelect }) {
         <div className="min-w-0">
           <h3 className="font-semibold text-zinc-100 text-base truncate">{pilot.name}</h3>
           <div className="flex flex-wrap items-center gap-2 mt-1">
-            {pilot.category && <Badge label={pilot.category} />}
+            {pilot.category &&
+              pilot.category.split(',').map((c) => c.trim()).filter(Boolean).map((cat) => (
+                <Badge key={cat} label={cat} />
+              ))}
             {pilot.status && (
               <Badge
                 label={pilot.status === 'ATRASADO' ? 'Em Atraso' : pilot.status === 'PENDENTE' ? 'Pendente' : 'Em Dia'}
