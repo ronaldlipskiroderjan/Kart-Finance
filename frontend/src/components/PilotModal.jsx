@@ -220,7 +220,10 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
           <div>
             <h2 className="text-xl font-bold text-zinc-100">{pilot.name}</h2>
             <div className="flex items-center gap-2 mt-1.5">
-              {pilot.category && <Badge label={pilot.category} />}
+              {pilot.category &&
+                pilot.category.split(',').map((c) => c.trim()).filter(Boolean).map((cat) => (
+                  <Badge key={cat} label={cat} />
+                ))}
               {pilot.status && (
                 <Badge
                   label={pilot.status === 'ATRASADO' ? 'Em Atraso' : pilot.status === 'PENDENTE' ? 'Pendente' : 'Em Dia'}

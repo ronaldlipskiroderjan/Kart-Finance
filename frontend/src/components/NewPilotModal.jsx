@@ -1,24 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronDown } from 'lucide-react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import { createPilot, updatePilot } from '../services/api';
 
-const CATEGORIES = ['125cc', 'F4', 'Cadete'];
+const CATEGORIES = ['125cc', 'F4', 'Cadete', 'Shifter'];
 
-const EMPTY = { name: '', category: '', baseFee: '', closingDay: 10, observations: '' };
+const EMPTY = { name: '', categories: [], baseFee: '', closingDay: 10, observations: '' };
+
+function parseCategoriesFromPilot(pilot) {
+  if (!pilot?.category) return [];
+  return pilot.category.split(',').map((c) => c.trim()).filter(Boolean);
+}
 
 export default function NewPilotModal({ isOpen, onClose, onSuccess, pilot = null }) {
   const isEditing = !!pilot;
   const [form, setForm] = useState(
     isEditing
-      ? { ...pilot, baseFee: pilot.baseFee?.toString() ?? '', closingDay: pilot.closingDay?.toString() ?? '10' }
+      ? {
+          ...pilot,
+          categories: parseCategoriesFromPilot(pilot),
+          baseFee: pilot.baseFee?.toString() ?? '',
+          closingDay: pilot.closingDay?.toString() ?? '10',
+        }
       : EMPTY
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleToggleCategory = (cat) => {
+    setForm((prev) => {
+      const already = prev.categories.includes(cat);
+      return {
+        ...prev,
+        categories: already ? prev.categories.filter((c) => c !== cat) : [...prev.categories, cat],
+      };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -26,8 +59,10 @@ export default function NewPilotModal({ isOpen, onClose, onSuccess, pilot = null
     setError('');
     setLoading(true);
     try {
+      const { categories, ...rest } = form;
       const payload = {
-        ...form,
+        ...rest,
+        category: categories.join(','),
         baseFee: parseFloat(form.baseFee) || 0,
         closingDay: parseInt(form.closingDay) || 10,
       };
@@ -45,6 +80,9 @@ export default function NewPilotModal({ isOpen, onClose, onSuccess, pilot = null
     }
   };
 
+  const selectedLabel =
+    form.categories.length === 0 ? null : form.categories.join(', ');
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isEditing ? 'Editar Piloto' : 'Novo Piloto'} size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -61,20 +99,45 @@ export default function NewPilotModal({ isOpen, onClose, onSuccess, pilot = null
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
+          <div ref={dropdownRef} className="relative">
             <label className="label">Categoria</label>
-            <select
-              name="category"
-              value={form.category}
-              onChange={handleChange}
-              className="input-field"
+            <button
+              type="button"
+              onClick={() => setDropdownOpen((o) => !o)}
+              className="input-field w-full flex items-center justify-between gap-2 text-left"
             >
-              <option value="">Selecionar…</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+              <span className={selectedLabel ? 'text-zinc-100 truncate' : 'text-zinc-500'}>
+                {selectedLabel ?? 'Selecionar…'}
+              </span>
+              <ChevronDown
+                size={15}
+                className={`shrink-0 text-zinc-400 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute z-20 left-0 right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl overflow-hidden">
+                {CATEGORIES.map((cat) => {
+                  const checked = form.categories.includes(cat);
+                  return (
+                    <label
+                      key={cat}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-700/60 cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => handleToggleCategory(cat)}
+                        className="w-4 h-4 rounded border-zinc-600 bg-zinc-700 accent-emerald-500 cursor-pointer"
+                      />
+                      <span className="text-sm text-zinc-200">{cat}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
           <div>
             <label className="label">Dia de Fechamento</label>
             <input
