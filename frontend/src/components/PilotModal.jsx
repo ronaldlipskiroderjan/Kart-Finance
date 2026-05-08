@@ -174,12 +174,30 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     const netExpenses = (summary.totalExpenses ?? 0) - (summary.totalReimbursements ?? 0);
     const debt = summary.previousDebt ?? 0;
 
+    const expensesDetail = (pilot.expenses || []).filter(e => {
+      const d = new Date(e.createdAt);
+      return d.getFullYear() === activeYear && d.getMonth() + 1 === activeMonth;
+    });
+    const reimbursementsDetail = (pilot.reimbursements || []).filter(r => {
+      const d = new Date(r.createdAt);
+      return d.getFullYear() === activeYear && d.getMonth() + 1 === activeMonth;
+    });
+
+    const hasExtras = expensesDetail.length > 0 || reimbursementsDetail.length > 0;
+
     return [
       `📋 *Fatura RA Kart Racing — ${pilot.name}*`,
       `📅 Período: ${monthLabel}`,
       ``,
       `💰 Mensalidade: ${formatBRL(summary.baseFee)}`,
-      `📈 Gastos Extras: ${netExpenses > 0 ? '+' : ''}${formatBRL(netExpenses)}`,
+      ...(hasExtras ? [
+        ``,
+        `📋 *Extras:*`,
+        ...expensesDetail.map(e => `  + ${e.description}: ${formatBRL(e.amount)}`),
+        ...reimbursementsDetail.map(r => `  - ${r.description}: ${formatBRL(r.amount)}`),
+        ``,
+        `📈 *Subtotal extras: ${netExpenses > 0 ? '+' : ''}${formatBRL(netExpenses)}*`,
+      ] : []),
       ...(debt > 0 ? [
         ``,
         `🚨 *ATENÇÃO*: O valor total está mais alto devido ao atraso de ${summary.unpaidMonthsCount || 1} mês(es) anterior(es).`,
