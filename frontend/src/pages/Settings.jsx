@@ -4,14 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
 import { getAdmins, updateAdmin, deleteAdmin } from '../services/api';
-import { User, Users, Save, Plus, Trash2, Loader, QrCode, Lock, Mail, LogOut, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Users, Save, Plus, Trash2, Loader, QrCode, Lock, Mail, LogOut, AlertCircle, CheckCircle2, Globe } from 'lucide-react';
 import { validatePixKey } from '../utils/pixQR';
 import Button from '../components/ui/Button';
 import NewAdminModal from '../components/NewAdminModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 
 function Settings() {
-  const { user, logout } = useAuth();
+  const { user, logout, globalPixKey, savePixKey } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('account');
   const [admins, setAdmins] = useState([]);
@@ -24,8 +24,10 @@ function Settings() {
   const [accountForm, setAccountForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    pixKey: user?.pixKey || ''
   });
+
+  // PIX global (compartilhado entre todos os admins)
+  const [pixKeyInput, setPixKeyInput] = useState(globalPixKey || '');
 
 
   const [showNewAdmin, setShowNewAdmin] = useState(false);
@@ -35,11 +37,6 @@ function Settings() {
     try {
       setLoading(true);
       const res = await getAdmins();
-      // Filter out the dev email (assuming dev email is hardcoded here or known)
-      // Since the dev email isn't known yet, we filter out if role === 'superadmin' 
-      // or we just show everyone except the logged in user? "a unica conta q não vai aparecer nessa tela é a minha de desenvolvedor"
-      // I will filter out "ronald" in email or simply role="superadmin". 
-      // For safety, let's assume the dev email contains 'ronald' until they clarify.
       const filtered = (res.data || []).filter(a => !a.email.toLowerCase().includes('ronald'));
       setAdmins(filtered);
     } catch (err) {
@@ -59,10 +56,21 @@ function Settings() {
     e.preventDefault();
     setMsg({ text: 'Salvando...', type: 'info' });
     try {
-      await updateAdmin(user.id, { ...accountForm, pixKey: accountForm.pixKey.trim() });
+      await updateAdmin(user.id, { ...accountForm });
       setMsg({ text: 'Informações atualizadas com sucesso! Faça login novamente para atualizar no painel.', type: 'success' });
     } catch (err) {
       setMsg({ text: err.response?.data?.error || 'Erro ao atualizar informações', type: 'error' });
+    }
+  };
+
+  const handlePixSave = async (e) => {
+    e.preventDefault();
+    setMsg({ text: 'Salvando...', type: 'info' });
+    try {
+      await savePixKey(pixKeyInput);
+      setMsg({ text: 'Chave PIX atualizada para todos os administradores!', type: 'success' });
+    } catch (err) {
+      setMsg({ text: err.response?.data?.error || 'Erro ao salvar chave PIX', type: 'error' });
     }
   };
 
@@ -194,21 +202,32 @@ function Settings() {
                   </div>
                   <div>
                     <h2 className="font-semibold text-zinc-100">Dados de Recebimento</h2>
-                    <p className="text-xs text-zinc-400">Configuração de pagamentos e PIX.</p>
+                    <p className="text-xs text-zinc-400">Chave PIX universal — compartilhada com todos os administradores.</p>
                   </div>
                 </div>
-                
-                <form onSubmit={handleAccountSave} className="space-y-4">
+
+                <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-zinc-800/60 border border-zinc-700/50">
+                  <Globe size={13} className="text-zinc-400 flex-shrink-0" />
+                  <p className="text-xs text-zinc-400">Esta chave é única para o sistema. Ao salvar, todos os admins usarão a mesma chave nas cobranças.</p>
+                </div>
+
+                <form onSubmit={handlePixSave} className="space-y-4">
                   <div>
                     <label className="label">Chave PIX</label>
-                    <input type="text" value={accountForm.pixKey} onChange={e => setAccountForm(p => ({ ...p, pixKey: e.target.value }))} className="input-field" placeholder="Ex: email@banco.com.br, +5511999999999 ou CPF" />
-                    {accountForm.pixKey.trim() && (() => {
-                      const v = validatePixKey(accountForm.pixKey);
+                    <input
+                      type="text"
+                      value={pixKeyInput}
+                      onChange={e => setPixKeyInput(e.target.value)}
+                      className="input-field"
+                      placeholder="Ex: email@banco.com.br, +5511999999999 ou CPF"
+                    />
+                    {pixKeyInput.trim() && (() => {
+                      const v = validatePixKey(pixKeyInput);
                       return v.valid
                         ? <p className="flex items-center gap-1.5 text-xs text-emerald-400 mt-2"><CheckCircle2 size={13} /> Chave {v.type} válida</p>
                         : <p className="flex items-center gap-1.5 text-xs text-amber-400 mt-2"><AlertCircle size={13} /> {v.hint || 'Formato não reconhecido'}</p>;
                     })()}
-                    {!accountForm.pixKey.trim() && (
+                    {!pixKeyInput.trim() && (
                       <p className="text-xs text-zinc-500 mt-2">
                         Formatos aceitos: e-mail, telefone (+55DDD...), CPF, CNPJ ou chave aleatória.
                       </p>

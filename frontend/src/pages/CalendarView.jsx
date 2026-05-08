@@ -75,22 +75,26 @@ export default function CalendarView() {
       <Sidebar />
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur border-b border-zinc-800 px-4 lg:px-8 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-zinc-100">Calendário</h1>
-            <p className="text-xs text-zinc-500 mt-0.5">Datas de fechamento dos pilotos</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={load} disabled={loading} className="btn-secondary p-2 rounded-xl mr-1">
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            </button>
-            <button onClick={prevMonth} className="btn-secondary p-2 rounded-xl" aria-label="Mês anterior">
-              <ChevronLeft size={17} />
-            </button>
-            <span className="text-sm font-semibold text-zinc-200 capitalize min-w-[140px] text-center">{monthLabel}</span>
-            <button onClick={nextMonth} className="btn-secondary p-2 rounded-xl" aria-label="Próximo mês">
-              <ChevronRight size={17} />
-            </button>
+        <header className="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur border-b border-zinc-800 px-4 lg:px-8 py-3 lg:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-bold text-zinc-100">Calendário</h1>
+              <p className="text-xs text-zinc-500 mt-0.5 hidden sm:block">Datas de fechamento dos pilotos</p>
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button onClick={load} disabled={loading} className="btn-secondary p-1.5 sm:p-2 rounded-xl" aria-label="Recarregar">
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              </button>
+              <button onClick={prevMonth} className="btn-secondary p-1.5 sm:p-2 rounded-xl" aria-label="Mês anterior">
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs sm:text-sm font-semibold text-zinc-200 capitalize text-center min-w-[96px] sm:min-w-[140px]">
+                {monthLabel}
+              </span>
+              <button onClick={nextMonth} className="btn-secondary p-1.5 sm:p-2 rounded-xl" aria-label="Próximo mês">
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         </header>
 

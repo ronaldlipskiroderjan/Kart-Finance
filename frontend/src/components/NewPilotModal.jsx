@@ -98,7 +98,7 @@ export default function NewPilotModal({ isOpen, onClose, onSuccess, pilot = null
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-3">
           <div ref={dropdownRef} className="relative">
             <label className="label">Categoria</label>
             <button

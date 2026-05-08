@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import { loginUser } from '../services/api';
+import { loginUser, getConfig, updateConfig as apiUpdateConfig } from '../services/api';
 
 // ── Storage keys ──────────────────────────────────
 const USER_KEY = 'kf_user';
+const PIX_KEY = 'kf_global_pix';
 
 function loadUser() {
   try {
@@ -21,17 +22,21 @@ function clearUser() {
   localStorage.removeItem(USER_KEY);
 }
 
+function loadGlobalPixKey() {
+  return localStorage.getItem(PIX_KEY) || '';
+}
+
+function saveGlobalPixKey(key) {
+  localStorage.setItem(PIX_KEY, key || '');
+}
+
 // ── Context ───────────────────────────────────────
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => loadUser()); // hydrate on mount
+  const [user, setUser] = useState(() => loadUser());
+  const [globalPixKey, setGlobalPixKey] = useState(() => loadGlobalPixKey());
 
-  /**
-   * Calls POST /api/auth/login.
-   * On success: persists user and updates state.
-   * On failure: throws the error message string so the caller can display it.
-   */
   const login = useCallback(async (email, password) => {
     try {
       const res = await loginUser({ email, password });
@@ -41,21 +46,48 @@ export function AuthProvider({ children }) {
         throw new Error(data.message ?? 'Email ou senha incorretos');
       }
 
-      const userData = { 
+      const userData = {
         id: data.id,
-        name: data.name, 
+        name: data.name,
         email: data.email,
-        pixKey: data.pixKey,
-        role: data.role
+        role: data.role,
       };
       saveUser(userData);
       setUser(userData);
+
+      // Carrega a chave PIX global do sistema
+      try {
+        const cfgRes = await getConfig();
+        const pix = cfgRes.data?.pixKey || '';
+        saveGlobalPixKey(pix);
+        setGlobalPixKey(pix);
+      } catch {
+        // mantém o valor em cache se falhar
+      }
+
       return userData;
     } catch (err) {
-      // Axios throws on 4xx/5xx — extrai a mensagem do body JSON quando disponível
       const serverMsg = err.response?.data?.message;
       throw new Error(serverMsg ?? err.message ?? 'Email ou senha incorretos');
     }
+  }, []);
+
+  const refreshPixKey = useCallback(async () => {
+    try {
+      const cfgRes = await getConfig();
+      const pix = cfgRes.data?.pixKey || '';
+      saveGlobalPixKey(pix);
+      setGlobalPixKey(pix);
+      return pix;
+    } catch {
+      return globalPixKey;
+    }
+  }, [globalPixKey]);
+
+  const savePixKey = useCallback(async (pixKey) => {
+    await apiUpdateConfig({ pixKey: pixKey.trim() });
+    saveGlobalPixKey(pixKey.trim());
+    setGlobalPixKey(pixKey.trim());
   }, []);
 
   const logout = useCallback(() => {
@@ -66,7 +98,7 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, globalPixKey, refreshPixKey, savePixKey }}>
       {children}
     </AuthContext.Provider>
   );

@@ -27,7 +27,7 @@ const TABS = [
 
 export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, globalPixKey } = useAuth();
   const { addEntry } = useCommHistory();
 
   const [activeTab, setActiveTab] = useState('summary');
@@ -205,9 +205,9 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       ] : []),
       ``,
       `✅ *Total a pagar: ${formatBRL(finalAmount)}*`,
-      ...(user?.pixKey ? [
+      ...(globalPixKey ? [
         ``,
-        `🔑 *Chave PIX:* ${user.pixKey.trim()}`,
+        `🔑 *Chave PIX:* ${globalPixKey.trim()}`,
         `_(Por favor, envie o comprovante após o pagamento)_`
       ] : [])
     ];
@@ -237,7 +237,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
         <div className="flex items-start justify-between gap-3 mb-5 -mt-1">
           <div>
             <h2 className="text-xl font-bold text-zinc-100">{pilot.name}</h2>
-            <div className="flex items-center gap-2 mt-1.5">
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
               {pilot.category &&
                 pilot.category.split(',').map((c) => c.trim()).filter(Boolean).map((cat) => (
                   <Badge key={cat} label={cat} />
