@@ -25,6 +25,7 @@ func main() {
 
 	authController := controllers.NewAuthController(repo)
 	adminController := controllers.NewAdminController(repo)
+	configController := controllers.NewConfigController(repo)
 	pilotController := controllers.NewPilotController(repo)
 	expenseController := controllers.NewExpenseController(repo)
 	reimbursementController := controllers.NewReimbursementController(repo)
@@ -39,6 +40,11 @@ func main() {
 	//Rotas de Auth
 	authGroup := app.Group("/auth")
 	authGroup.Post("/login", authController.Login)
+
+	//Rotas de Configuração Global
+	configGroup := app.Group("/config")
+	configGroup.Get("/", configController.GetConfig)
+	configGroup.Put("/", configController.UpdateConfig)
 
 	//Rotas de Admin
 	adminGroup := app.Group("/admins")

@@ -24,7 +24,8 @@ func ConnectDB() {
 	}
 
 	err = database.AutoMigrate(
-		&models.Admin{}, 
+		&models.Admin{},
+		&models.SystemConfig{},
 		&models.Pilot{},
 		&models.Expense{},
 		&models.Reimbursement{},

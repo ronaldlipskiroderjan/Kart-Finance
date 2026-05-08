@@ -27,7 +27,7 @@ const TABS = [
 
 export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, globalPixKey } = useAuth();
   const { addEntry } = useCommHistory();
 
   const [activeTab, setActiveTab] = useState('summary');
@@ -205,9 +205,9 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       ] : []),
       ``,
       `✅ *Total a pagar: ${formatBRL(finalAmount)}*`,
-      ...(user?.pixKey ? [
+      ...(globalPixKey ? [
         ``,
-        `🔑 *Chave PIX:* ${user.pixKey.trim()}`,
+        `🔑 *Chave PIX:* ${globalPixKey.trim()}`,
         `_(Por favor, envie o comprovante após o pagamento)_`
       ] : [])
     ];

@@ -52,6 +52,10 @@ api.interceptors.response.use((response) => {
  */
 export const loginUser = (credentials) => api.post('auth/login', credentials);
 
+// ─── Config Global ────────────────────────────────
+export const getConfig = () => api.get('config');
+export const updateConfig = (data) => api.put('config', data);
+
 // ─── Admins ───────────────────────────────────────
 export const getAdmins = () => api.get('admins');
 export const createAdmin = (data) => api.post('admins', data);
