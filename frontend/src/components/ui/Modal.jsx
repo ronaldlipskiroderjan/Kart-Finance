@@ -20,7 +20,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4"
       role="dialog"
       aria-modal="true"
     >
@@ -31,8 +31,8 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
       />
       {/* Panel */}
       <div
-        className={`relative w-full ${sizes[size]} bg-zinc-900 border border-zinc-800 
-                    rounded-t-3xl sm:rounded-2xl shadow-2xl shadow-black/50 
+        className={`relative w-full ${sizes[size]} bg-zinc-900 border border-zinc-800
+                    rounded-t-3xl sm:rounded-2xl shadow-2xl shadow-black/50
                     max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300`}
       >
         {/* Header */}

@@ -213,14 +213,14 @@ export default function HistoryView() {
                   <div key={record.id} className="glass-card p-5 transition-all duration-200">
                     <div className="cursor-pointer" onClick={() => toggleMonth(record)}>
                       {/* Month + status */}
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                         <div className="flex items-center gap-2">
                           <Calendar size={15} className="text-emerald-400" />
                           <span className="text-sm font-semibold text-zinc-200 capitalize">
                             {record.monthReference}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <StatusBadge status={record.status ?? 'PENDENTE'} />
                           {isPending && (
                             <button
@@ -230,7 +230,7 @@ export default function HistoryView() {
                               title="Marcar como Pago"
                             >
                               <CheckSquare size={12} />
-                              {isPayingThis ? 'Salvando…' : '✔ Marcar como Pago'}
+                              {isPayingThis ? 'Salvando…' : 'Marcar como Pago'}
                             </button>
                           )}
                         </div>

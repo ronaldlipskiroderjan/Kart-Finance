@@ -141,7 +141,7 @@ export default function Analytics() {
 
         <div className="flex-1 px-4 lg:px-8 py-6 pb-28 lg:pb-8 space-y-6">
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <KPICard icon={Users} label="Total Pilotos" value={pilots.length} color="bg-blue-500/20" delay={0} />
             <KPICard icon={DollarSign} label="A Receber" value={formatBRL(totalPending)} color="bg-amber-500/20" delay={0.06} sub="Pendente + Atrasado" />
             <KPICard icon={TrendingUp} label="Recebido Este Mês" value={formatBRL(receivedThisMonth)} color="bg-emerald-500/20" delay={0.12} />
@@ -223,17 +223,19 @@ export default function Analytics() {
               ) : categoryData.length === 0 ? (
                 <div className="h-40 flex items-center justify-center text-zinc-600 text-sm">Sem dados</div>
               ) : (
-                <div className="flex items-center gap-4">
-                  <ResponsiveContainer width={130} height={130}>
-                    <PieChart>
-                      <Pie data={categoryData} cx="50%" cy="50%" innerRadius={32} outerRadius={58} dataKey="value" paddingAngle={3}>
-                        {categoryData.map((_, i) => (
-                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex-1 space-y-2">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="w-full sm:w-[130px] shrink-0">
+                    <ResponsiveContainer width="100%" height={130}>
+                      <PieChart>
+                        <Pie data={categoryData} cx="50%" cy="50%" innerRadius={32} outerRadius={58} dataKey="value" paddingAngle={3}>
+                          {categoryData.map((_, i) => (
+                            <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex-1 w-full space-y-2">
                     {categoryData.map((c, i) => (
                       <div key={c.name} className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
