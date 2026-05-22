@@ -63,7 +63,7 @@ export default function CommandPalette({ pilots = [], isOpen, onClose, onSelectP
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -16 }}
             transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-            className="fixed top-[12%] left-1/2 -translate-x-1/2 w-full max-w-lg z-[201] px-4"
+            className="fixed top-4 sm:top-[12%] left-1/2 -translate-x-1/2 w-full max-w-lg z-[201] px-4"
           >
             <div className="bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl shadow-black/70 overflow-hidden">
               {/* Input */}
@@ -85,7 +85,7 @@ export default function CommandPalette({ pilots = [], isOpen, onClose, onSelectP
               </div>
 
               {/* Results */}
-              <div className="max-h-[360px] overflow-y-auto py-2">
+              <div className="max-h-[min(360px,55vh)] overflow-y-auto py-2">
                 {filteredPilots.length > 0 && (
                   <div className="px-2 mb-1">
                     <p className="text-[10px] text-zinc-600 uppercase font-semibold tracking-wider px-2 py-1.5">Pilotos</p>

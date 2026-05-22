@@ -6,13 +6,14 @@ import CommHistoryModal from './CommHistoryModal';
 import {
   getMonthlySummary, finalizeClosing,
   createExpense, createReimbursement, deleteExpense, deleteReimbursement, deletePilot,
+  getPilotRaceEntries, payRaceEntry,
 } from '../services/api';
 import { formatBRL, formatDate, formatMonthLabel, currentYearMonth } from '../utils/formatters';
 import { getActiveBillingMonth, isSameMonth } from '../utils/billing';
 import {
   PlusCircle, MinusCircle, CheckSquare, BarChart2, Trash2, History,
   AlertTriangle, Pencil, X, MessageCircle, Calendar,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Flag, CheckCircle2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -50,6 +51,9 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [showCommHistory, setShowCommHistory] = useState(false);
+
+  const [raceEntries, setRaceEntries] = useState([]);
+  const [payingRaceId, setPayingRaceId] = useState(null);
 
   const [activeYear, setActiveYear] = useState(() => currentYearMonth().year);
   const [activeMonth, setActiveMonth] = useState(() => currentYearMonth().month);
@@ -89,6 +93,14 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     setCloseMsg('');
     setShowCloseConfirm(false);
   }, [pilot?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch race entries whenever the modal opens for a pilot
+  useEffect(() => {
+    if (!isOpen || !pilot) return;
+    getPilotRaceEntries(pilot.id)
+      .then(res => setRaceEntries(res.data ?? []))
+      .catch(() => setRaceEntries([]));
+  }, [isOpen, pilot?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-fetch when modal opens or month/tab changes
   useEffect(() => {
@@ -154,6 +166,39 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       setCloseMsg(`❌ ${err.response?.data ?? 'Erro ao fechar mês.'}`);
       setShowCloseConfirm(false);
     } finally { setCloseLoading(false); }
+  };
+
+  const handlePayRaceEntry = async (entry) => {
+    setPayingRaceId(entry.id);
+    try {
+      await payRaceEntry(entry.id);
+      setRaceEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'PAGO' } : e));
+    } catch {
+      // silencioso — o badge continua mostrando o estado antigo
+    } finally {
+      setPayingRaceId(null);
+    }
+  };
+
+  const handleSendRaceWhatsApp = (entry) => {
+    const raceName = entry.raceWeekend?.name ?? 'Corrida';
+    const raceDate = entry.raceWeekend?.date
+      ? new Date(entry.raceWeekend.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+      : '';
+    const lines = [
+      `🏎️ *Cobrança de Corrida — ${pilot.name}*`,
+      `📅 Evento: ${raceName}`,
+      ...(raceDate ? [`🗓️ Data: ${raceDate}`] : []),
+      ``,
+      `✅ *Valor: ${formatBRL(entry.amount)}*`,
+      ...(globalPixKey ? [
+        ``,
+        `🔑 *Chave PIX:* ${globalPixKey.trim()}`,
+        `_(Por favor, envie o comprovante após o pagamento)_`,
+      ] : []),
+    ];
+    addEntry({ pilotId: pilot.id, pilotName: pilot.name, message: lines.join('\n'), amount: entry.amount, monthLabel: raceName });
+    window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
   };
 
   const handleDelete = async () => {
@@ -297,14 +342,14 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id); if (tab.id === 'summary' || tab.id === 'close') fetchSummary(); }}
-                className={`flex-1 flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
+                className={`flex-1 flex flex-row items-center justify-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all duration-200 ${
                   activeTab === tab.id
                     ? 'bg-zinc-900 text-emerald-400 shadow-sm'
                     : 'text-zinc-500 hover:text-zinc-300'
                 }`}
               >
-                <Icon size={15} />
-                <span>{tab.label}</span>
+                <Icon size={14} className="shrink-0" />
+                <span className="truncate">{tab.label}</span>
               </button>
             );
           })}
@@ -384,6 +429,46 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                     <p className="text-base font-bold text-emerald-400">{formatBRL(finalAmount)}</p>
                   </div>
 
+                  {/* Corridas pendentes */}
+                  {raceEntries.filter(e => e.status !== 'PAGO').length > 0 && (
+                    <div>
+                      <p className="text-xs text-zinc-500 font-medium mb-2 flex items-center gap-1.5">
+                        <Flag size={11} className="text-emerald-400" />
+                        Corridas em Aberto
+                      </p>
+                      <div className="space-y-2">
+                        {raceEntries.filter(e => e.status !== 'PAGO').map(entry => (
+                          <div key={entry.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm text-zinc-300 truncate">{entry.raceWeekend?.name ?? 'Corrida'}</span>
+                              <span className={`text-xs ${entry.status === 'ATRASADO' ? 'text-red-400' : 'text-zinc-500'}`}>
+                                {entry.status === 'ATRASADO' ? '⚠ Atrasado' : 'Pendente'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                              <span className="text-sm font-semibold text-zinc-200">{formatBRL(entry.amount)}</span>
+                              <button
+                                onClick={() => handleSendRaceWhatsApp(entry)}
+                                className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-zinc-700 transition-colors"
+                                title="Cobrar via WhatsApp"
+                              >
+                                <MessageCircle size={13} />
+                              </button>
+                              <button
+                                onClick={() => handlePayRaceEntry(entry)}
+                                disabled={payingRaceId === entry.id}
+                                className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-zinc-700 transition-colors disabled:opacity-40"
+                                title="Marcar como pago"
+                              >
+                                <CheckCircle2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Action buttons row */}
                   <button
                     type="button"
@@ -402,8 +487,8 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                       <div className="space-y-1.5">
                         {expensesDetail.map((e) => (
                           <div key={e.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-zinc-300">{e.description}</span>
+                            <div className="flex flex-col min-w-0 flex-1 mr-2">
+                              <span className="text-sm text-zinc-300 truncate">{e.description}</span>
                               <span className="text-xs text-zinc-500">{formatDate(e.createdAt)}</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -425,8 +510,8 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                       <div className="space-y-1.5">
                         {reimbursementsDetail.map((r) => (
                           <div key={r.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-zinc-300">{r.description}</span>
+                            <div className="flex flex-col min-w-0 flex-1 mr-2">
+                              <span className="text-sm text-zinc-300 truncate">{r.description}</span>
                               <span className="text-xs text-zinc-500">{formatDate(r.createdAt)}</span>
                             </div>
                             <div className="flex items-center gap-2">

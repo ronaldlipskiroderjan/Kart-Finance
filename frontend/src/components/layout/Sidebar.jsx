@@ -1,11 +1,12 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings as SettingsIcon, LogOut, BarChart2, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, LogOut, BarChart2, CalendarDays, Flag } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const NAV_LINKS = [
   { to: '/', end: true, icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/analytics', icon: BarChart2, label: 'Analytics' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendário' },
+  { to: '/races', icon: Flag, label: 'Corridas' },
   { to: '/settings', icon: SettingsIcon, label: 'Configurações' },
 ];
 

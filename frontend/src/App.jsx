@@ -8,6 +8,7 @@ import HistoryView from './pages/HistoryView';
 import Settings from './pages/Settings';
 import Analytics from './pages/Analytics';
 import CalendarView from './pages/CalendarView';
+import RacesView from './pages/RacesView';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
@@ -23,6 +24,7 @@ function AppRoutes() {
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
       <Route path="/calendar" element={<ProtectedRoute><CalendarView /></ProtectedRoute>} />
+      <Route path="/races" element={<ProtectedRoute><RacesView /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

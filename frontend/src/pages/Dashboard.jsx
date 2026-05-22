@@ -194,7 +194,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
-            className="px-4 lg:px-8 pt-4 lg:pt-0 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5"
+            className="px-4 md:px-6 lg:px-8 pt-4 lg:pt-0 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5"
           >
             <StatCard icon={Users} label="Total Pilotos" value={pilots.length} color="bg-blue-500/15" />
             <StatCard icon={DollarSign} label="A Receber" value={formatBRL(totalPendente)} color="bg-amber-500/15" />
@@ -204,7 +204,7 @@ export default function Dashboard() {
         )}
 
         {/* Search + filters + refresh */}
-        <div className="px-4 pt-2 lg:pt-0 lg:px-8 pb-4 flex gap-3 flex-wrap">
+        <div className="px-4 md:px-6 pt-2 lg:pt-0 lg:px-8 pb-4 flex gap-3 flex-wrap">
           <div className="relative flex-1 min-w-40">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
             <input
@@ -246,7 +246,7 @@ export default function Dashboard() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 px-4 lg:px-8 pb-28 lg:pb-8">
+        <div className="flex-1 px-4 md:px-6 lg:px-8 pb-28 lg:pb-8">
           {error && (
             <div className="bg-red-900/30 border border-red-800/50 rounded-xl px-4 py-3 text-sm text-red-400 mb-4">
               {error}
