@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getPilots } from '../services/api';
+import { getPilots, getRaceWeekends } from '../services/api';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
 import { formatBRL } from '../utils/formatters';
@@ -8,7 +8,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from 'recharts';
-import { TrendingUp, Users, AlertCircle, DollarSign, Award, RefreshCw } from 'lucide-react';
+import { TrendingUp, Users, AlertCircle, DollarSign, Award, RefreshCw, Flag, Trophy } from 'lucide-react';
 
 const PIE_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
@@ -58,16 +58,22 @@ function SectionTitle({ children, delay = 0 }) {
   );
 }
 
+const RACE_STATUS_COLORS = { PAGO: '#10b981', PENDENTE: '#f59e0b', ATRASADO: '#ef4444' };
+
+const entryTotal = (entry) =>
+  (entry.amount || 0) + (entry.extras || []).reduce((s, x) => s + (x.amount || 0), 0);
+
 export default function Analytics() {
   const [pilots, setPilots] = useState([]);
+  const [raceWeekends, setRaceWeekends] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = () => {
     setLoading(true);
-    getPilots()
-      .then(res => setPilots(res.data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.allSettled([
+      getPilots().then(res => setPilots(res.data || [])),
+      getRaceWeekends().then(res => setRaceWeekends(res.data || [])),
+    ]).finally(() => setLoading(false));
   };
 
   useEffect(load, []);
@@ -124,6 +130,40 @@ export default function Analytics() {
     .slice(0, 8)
     .map(p => ({ name: p.name.split(' ')[0], mensalidade: p.baseFee || 0 }));
 
+  // ── Race analytics ──────────────────────────────────────────────────────────
+  const allEntries = raceWeekends.flatMap(rw => rw.entries || []);
+
+  const raceTotalPaid = allEntries
+    .filter(e => e.status === 'PAGO')
+    .reduce((s, e) => s + entryTotal(e), 0);
+
+  const racePending = allEntries
+    .filter(e => e.status !== 'PAGO')
+    .reduce((s, e) => s + entryTotal(e), 0);
+
+  const openEntryPilots = new Set(
+    allEntries.filter(e => e.status !== 'PAGO').map(e => e.pilotId)
+  ).size;
+
+  // Bar chart: last 6 race weekends — pago vs pendente
+  const raceEventBars = [...raceWeekends]
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(-6)
+    .map(rw => {
+      const entries = rw.entries || [];
+      const pago = entries.filter(e => e.status === 'PAGO').reduce((s, e) => s + entryTotal(e), 0);
+      const pendente = entries.filter(e => e.status !== 'PAGO').reduce((s, e) => s + entryTotal(e), 0);
+      const label = rw.name.length > 12 ? rw.name.slice(0, 12) + '…' : rw.name;
+      return { label, pago, pendente };
+    });
+
+  // Pie: entry status distribution
+  const raceStatusData = [
+    { name: 'Pago', value: allEntries.filter(e => e.status === 'PAGO').length, color: RACE_STATUS_COLORS.PAGO },
+    { name: 'Pendente', value: allEntries.filter(e => e.status === 'PENDENTE').length, color: RACE_STATUS_COLORS.PENDENTE },
+    { name: 'Atrasado', value: allEntries.filter(e => e.status === 'ATRASADO').length, color: RACE_STATUS_COLORS.ATRASADO },
+  ].filter(d => d.value > 0);
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -139,7 +179,7 @@ export default function Analytics() {
           </button>
         </header>
 
-        <div className="flex-1 px-4 lg:px-8 py-6 pb-28 lg:pb-8 space-y-6">
+        <div className="flex-1 px-4 md:px-6 lg:px-8 py-6 pb-28 lg:pb-8 space-y-6">
           {/* KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <KPICard icon={Users} label="Total Pilotos" value={pilots.length} color="bg-blue-500/20" delay={0} />
@@ -285,6 +325,104 @@ export default function Analytics() {
               </div>
             )}
           </motion.div>
+
+          {/* ── Corridas section divider ───────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.42 }}
+            className="flex items-center gap-3"
+          >
+            <Flag size={16} className="text-violet-400 shrink-0" />
+            <span className="text-sm font-semibold text-zinc-300">Corridas</span>
+            <div className="flex-1 h-px bg-zinc-800" />
+          </motion.div>
+
+          {/* Race KPI cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <KPICard icon={Trophy} label="Arrecadado (Corridas)" value={formatBRL(raceTotalPaid)} color="bg-emerald-500/20" delay={0.44} />
+            <KPICard icon={DollarSign} label="A Receber (Corridas)" value={formatBRL(racePending)} color="bg-amber-500/20" delay={0.47} sub="Pendente + Atrasado" />
+            <KPICard icon={Flag} label="Eventos" value={raceWeekends.length} color="bg-violet-500/20" delay={0.50} sub="fins de semana" />
+            <KPICard icon={Users} label="Pilotos em Aberto" value={openEntryPilots} color="bg-red-500/20" delay={0.53} sub="com corridas pendentes" />
+          </div>
+
+          {/* Race event bar chart + status pie */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.56 }}
+              className="glass-card p-5"
+            >
+              <SectionTitle delay={0.57}>Receita por Evento</SectionTitle>
+              {loading ? (
+                <div className="h-44 animate-pulse bg-zinc-800/50 rounded-xl" />
+              ) : raceEventBars.length === 0 ? (
+                <div className="h-44 flex items-center justify-center text-zinc-600 text-sm">Sem eventos cadastrados</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={raceEventBars} margin={{ top: 0, right: 4, left: -16, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false}
+                      tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend formatter={v => <span className="text-xs text-zinc-400">{v === 'pago' ? 'Pago' : 'Pendente'}</span>} />
+                    <Bar dataKey="pago" name="pago" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} maxBarSize={32} />
+                    <Bar dataKey="pendente" name="pendente" stackId="a" fill="#f59e0b" radius={[6, 6, 0, 0]} maxBarSize={32} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.59 }}
+              className="glass-card p-5"
+            >
+              <SectionTitle delay={0.60}>Status das Inscrições</SectionTitle>
+              {loading ? (
+                <div className="h-44 animate-pulse bg-zinc-800/50 rounded-xl" />
+              ) : raceStatusData.length === 0 ? (
+                <div className="h-44 flex flex-col items-center justify-center gap-2 text-zinc-600 text-sm">
+                  <Flag size={28} className="opacity-30" />
+                  Nenhuma inscrição registrada
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="w-full sm:w-[140px] shrink-0">
+                    <ResponsiveContainer width="100%" height={140}>
+                      <PieChart>
+                        <Pie data={raceStatusData} cx="50%" cy="50%" innerRadius={34} outerRadius={60} dataKey="value" paddingAngle={3}>
+                          {raceStatusData.map((d, i) => (
+                            <Cell key={i} fill={d.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value, name) => [`${value} inscrição(ões)`, name]}
+                          contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12, fontSize: 12 }}
+                          labelStyle={{ color: '#a1a1aa' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex-1 w-full space-y-2.5">
+                    {raceStatusData.map(d => (
+                      <div key={d.name} className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                        <span className="text-sm text-zinc-300 flex-1">{d.name}</span>
+                        <span className="text-xs font-bold text-zinc-400">{d.value}</span>
+                      </div>
+                    ))}
+                    <div className="pt-1 border-t border-zinc-800/60">
+                      <span className="text-xs text-zinc-500">Total: {allEntries.length} inscrições</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
         </div>
       </main>
       <BottomNav />

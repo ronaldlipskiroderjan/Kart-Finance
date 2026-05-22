@@ -98,9 +98,9 @@ export default function CalendarView() {
           </div>
         </header>
 
-        <div className="flex-1 px-4 lg:px-8 py-6 pb-28 lg:pb-8 space-y-4">
+        <div className="flex-1 px-4 md:px-6 lg:px-8 py-6 pb-28 lg:pb-8 space-y-4">
           {/* Legend */}
-          <div className="flex items-center gap-4 text-xs text-zinc-500">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
             {Object.entries(STATUS_DOT).map(([k, cls]) => (
               <div key={k} className="flex items-center gap-1.5">
                 <div className={`w-2.5 h-2.5 rounded-full ${cls}`} />

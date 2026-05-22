@@ -20,6 +20,7 @@ func InitCron(repo *repository.AppRepository, closingService *services.ClosingSe
 		log.Println("[CRON] Iniciando fechamento automático...")
 		runAutoClosing(repo, closingService)
 		runOverdueUpdate(repo)
+		runRaceOverdueUpdate(repo)
 	})
 
 	if err != nil {
@@ -39,6 +40,18 @@ func runOverdueUpdate(repo *repository.AppRepository) {
 		log.Printf("[CRON] Erro ao atualizar status para ATRASADO: %v", result.Error)
 	} else if result.RowsAffected > 0 {
 		log.Printf("[CRON] %d fechamento(s) marcado(s) como ATRASADO", result.RowsAffected)
+	}
+}
+
+func runRaceOverdueUpdate(repo *repository.AppRepository) {
+	now := time.Now()
+	result := repo.DB.Table("race_entries").
+		Where("status = ? AND due_date < ?", models.RaceStatusPendente, now).
+		Update("status", models.RaceStatusAtrasado)
+	if result.Error != nil {
+		log.Printf("[CRON] Erro ao atualizar corridas para ATRASADO: %v", result.Error)
+	} else if result.RowsAffected > 0 {
+		log.Printf("[CRON] %d corrida(s) marcada(s) como ATRASADO", result.RowsAffected)
 	}
 }
 

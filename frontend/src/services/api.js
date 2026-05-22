@@ -93,4 +93,19 @@ export const getPilotHistory = (pilotId) =>
 export const payClosing = (closingId) =>
   api.put(`closing/history/${closingId}/pay`);
 
+// ─── Race Weekends ─────────────────────────────────
+export const getPilotRaceEntries = (pilotId) => api.get(`races/pilot/${pilotId}/entries`);
+export const getRaceWeekends = () => api.get('races');
+export const getRaceWeekendById = (id) => api.get(`races/${id}`);
+export const createRaceWeekend = (data) => api.post('races', data);
+export const updateRaceWeekend = (id, data) => api.put(`races/${id}`, data);
+export const deleteRaceWeekend = (id) => api.delete(`races/${id}`);
+
+export const addRaceEntry = (raceId, data) => api.post(`races/${raceId}/entries`, data);
+export const updateRaceEntry = (entryId, data) => api.put(`races/entries/${entryId}`, data);
+export const removeRaceEntry = (entryId) => api.delete(`races/entries/${entryId}`);
+export const payRaceEntry = (entryId) => api.put(`races/entries/${entryId}/pay`);
+export const addRaceEntryExpense = (entryId, data) => api.post(`races/entries/${entryId}/expenses`, data);
+export const deleteRaceEntryExpense = (expenseId) => api.delete(`races/entries/expenses/${expenseId}`);
+
 export default api;

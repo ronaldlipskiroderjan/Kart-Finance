@@ -31,6 +31,9 @@ func main() {
 	reimbursementController := controllers.NewReimbursementController(repo)
 	closingController := controllers.NewClosingController(closingService)
 
+	raceService := services.NewRaceService(repo)
+	raceController := controllers.NewRaceController(raceService)
+
 
 	// Rotas da API
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -73,6 +76,21 @@ func main() {
 	reimbursementGroup.Get("/", reimbursementController.GetAllReimbursements)
 	reimbursementGroup.Post("/", reimbursementController.CreateReimbursement)
 	reimbursementGroup.Delete("/:id", reimbursementController.DeleteReimbursement)
+
+	//Rotas de Corridas
+	raceGroup := app.Group("/races")
+	raceGroup.Get("/", raceController.GetAll)
+	raceGroup.Post("/", raceController.Create)
+	raceGroup.Get("/pilot/:pilotId/entries", raceController.GetEntriesForPilot)
+	raceGroup.Get("/:id", raceController.GetByID)
+	raceGroup.Put("/:id", raceController.Update)
+	raceGroup.Delete("/:id", raceController.Delete)
+	raceGroup.Post("/:id/entries", raceController.AddEntry)
+	raceGroup.Put("/entries/:entryId", raceController.UpdateEntry)
+	raceGroup.Delete("/entries/:entryId", raceController.RemoveEntry)
+	raceGroup.Put("/entries/:entryId/pay", raceController.PayEntry)
+	raceGroup.Post("/entries/:entryId/expenses", raceController.AddEntryExpense)
+	raceGroup.Delete("/entries/expenses/:expenseId", raceController.DeleteEntryExpense)
 
 	//Rotas de Fechamento
 	closingGroup := app.Group("/closing")

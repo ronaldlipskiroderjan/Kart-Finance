@@ -109,7 +109,7 @@ function Settings() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 max-w-4xl w-full mx-auto px-4 pt-6 pb-4 lg:pt-0 lg:px-8 lg:pb-8 space-y-6">
+        <div className="flex-1 max-w-4xl w-full mx-auto px-4 md:px-6 pt-6 pb-4 lg:pt-0 lg:px-8 lg:pb-8 space-y-6">
           {/* Tabs */}
           <div className="flex gap-2 p-1 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
             <button
