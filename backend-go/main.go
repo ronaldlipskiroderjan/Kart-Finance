@@ -10,6 +10,7 @@ import (
 	"kartfinance-api/repository"
 	"kartfinance-api/services"
 
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -98,6 +99,13 @@ func main() {
 	closingGroup.Post("/:pilot_id/finalize", closingController.Finalize)
 	closingGroup.Get("/:pilotId/history", closingController.GetHistory)
 	closingGroup.Put("/history/:closingId/pay", closingController.Pay)
+
+	// Endpoint de teste: dispara manualmente os jobs diários (fechamento + atrasados)
+	// Usar apenas para verificação — remover ou proteger em produção
+	app.Post("/admin/trigger-daily-jobs", func(c *fiber.Ctx) error {
+		go jobs.RunDailyJobs(repo, closingService)
+		return c.JSON(fiber.Map{"message": "Jobs diários disparados. Verifique os logs do servidor."})
+	})
 
 
 	port := os.Getenv("PORT")

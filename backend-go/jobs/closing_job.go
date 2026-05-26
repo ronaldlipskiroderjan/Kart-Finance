@@ -11,16 +11,27 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-func InitCron(repo *repository.AppRepository, closingService *services.ClosingService) {
-	// Cria um novo agendador (cron)
-	c := cron.New()
+// BrazilLocation retorna o fuso horário de Brasília (UTC-3).
+// Usado tanto pelo cron quanto pelo RunDailyJobs para garantir
+// que o fechamento ocorra à meia-noite no horário do Brasil.
+func BrazilLocation() *time.Location {
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		// Fallback seguro: UTC-3 fixo (sem horário de verão)
+		loc = time.FixedZone("BRT", -3*60*60)
+	}
+	return loc
+}
 
-	// Agendado para rodar todo dia à meia-noite
+func InitCron(repo *repository.AppRepository, closingService *services.ClosingService) {
+	loc := BrazilLocation()
+
+	// Cron com fuso horário de Brasília — dispara à meia-noite BRT
+	c := cron.New(cron.WithLocation(loc))
+
 	_, err := c.AddFunc("0 0 * * *", func() {
 		log.Println("[CRON] Iniciando fechamento automático...")
-		runAutoClosing(repo, closingService)
-		runOverdueUpdate(repo)
-		runRaceOverdueUpdate(repo)
+		RunDailyJobs(repo, closingService)
 	})
 
 	if err != nil {
@@ -28,11 +39,19 @@ func InitCron(repo *repository.AppRepository, closingService *services.ClosingSe
 	}
 
 	c.Start()
-	log.Println("[CRON] Serviço de agendamento (Cron) iniciado com sucesso")
+	log.Println("[CRON] Serviço de agendamento (Cron) iniciado com sucesso (fuso: America/Sao_Paulo)")
+}
+
+// RunDailyJobs executa todos os jobs diários.
+// Exportado para que o endpoint de teste possa acioná-lo manualmente.
+func RunDailyJobs(repo *repository.AppRepository, closingService *services.ClosingService) {
+	runAutoClosing(repo, closingService)
+	runOverdueUpdate(repo)
+	runRaceOverdueUpdate(repo)
 }
 
 func runOverdueUpdate(repo *repository.AppRepository) {
-	now := time.Now()
+	now := time.Now().In(BrazilLocation())
 	result := repo.DB.Model(&models.ClosingHistory{}).
 		Where("status = ? AND due_date < ?", models.StatusPendente, now).
 		Update("status", models.StatusAtrasado)
@@ -44,7 +63,7 @@ func runOverdueUpdate(repo *repository.AppRepository) {
 }
 
 func runRaceOverdueUpdate(repo *repository.AppRepository) {
-	now := time.Now()
+	now := time.Now().In(BrazilLocation())
 	result := repo.DB.Table("race_entries").
 		Where("status = ? AND due_date < ?", models.RaceStatusPendente, now).
 		Update("status", models.RaceStatusAtrasado)
@@ -56,7 +75,7 @@ func runRaceOverdueUpdate(repo *repository.AppRepository) {
 }
 
 func runAutoClosing(repo *repository.AppRepository, closingService *services.ClosingService) {
-	now := time.Now()
+	now := time.Now().In(BrazilLocation())
 	currentDay := now.Day()
 
 	// Verifica se hoje é o último dia do mês atual

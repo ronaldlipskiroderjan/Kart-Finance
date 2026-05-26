@@ -37,8 +37,8 @@ func ConnectDB() {
 	sqlRaceEntries := `
 		CREATE TABLE IF NOT EXISTS race_entries (
 			id               BIGSERIAL PRIMARY KEY,
-			race_weekend_id  BIGINT NOT NULL REFERENCES race_weekends(id),
-			pilot_id         BIGINT NOT NULL REFERENCES pilots(id),
+			race_weekend_id  BIGINT NOT NULL REFERENCES race_weekends(id) ON DELETE CASCADE,
+			pilot_id         BIGINT NOT NULL REFERENCES pilots(id) ON DELETE CASCADE,
 			amount           DOUBLE PRECISION NOT NULL,
 			status           CHARACTER VARYING(20) NOT NULL DEFAULT 'PENDENTE',
 			due_date         TIMESTAMPTZ,
@@ -59,7 +59,7 @@ func ConnectDB() {
 	sqlRaceEntryExpenses := `
 		CREATE TABLE IF NOT EXISTS race_entry_expenses (
 			id             BIGSERIAL PRIMARY KEY,
-			race_entry_id  BIGINT NOT NULL REFERENCES race_entries(id),
+			race_entry_id  BIGINT NOT NULL REFERENCES race_entries(id) ON DELETE CASCADE,
 			description    CHARACTER VARYING(255) NOT NULL,
 			amount         DOUBLE PRECISION NOT NULL,
 			created_at     TIMESTAMPTZ DEFAULT NOW()
@@ -67,6 +67,35 @@ func ConnectDB() {
 	if err := database.Exec(sqlRaceEntryExpenses).Error; err != nil {
 		log.Fatal("Failed to create race_entry_expenses table: ", err)
 	}
+
+	// Garante ON DELETE CASCADE nas FKs para pilotos e corridas — necessário para DELETE de piloto funcionar
+	database.Exec(`
+		DO $$
+		BEGIN
+			-- race_entries.pilot_id → pilots.id
+			IF EXISTS (
+				SELECT 1 FROM information_schema.table_constraints
+				WHERE constraint_name = 'race_entries_pilot_id_fkey'
+			) THEN
+				ALTER TABLE race_entries DROP CONSTRAINT race_entries_pilot_id_fkey;
+			END IF;
+			ALTER TABLE race_entries
+				ADD CONSTRAINT race_entries_pilot_id_fkey
+				FOREIGN KEY (pilot_id) REFERENCES pilots(id) ON DELETE CASCADE;
+
+			-- race_entry_expenses.race_entry_id → race_entries.id
+			IF EXISTS (
+				SELECT 1 FROM information_schema.table_constraints
+				WHERE constraint_name = 'race_entry_expenses_race_entry_id_fkey'
+			) THEN
+				ALTER TABLE race_entry_expenses DROP CONSTRAINT race_entry_expenses_race_entry_id_fkey;
+			END IF;
+			ALTER TABLE race_entry_expenses
+				ADD CONSTRAINT race_entry_expenses_race_entry_id_fkey
+				FOREIGN KEY (race_entry_id) REFERENCES race_entries(id) ON DELETE CASCADE;
+		END
+		$$;
+	`)
 
 	log.Println("Database connection established and migrated successfully")
 	DB = database
