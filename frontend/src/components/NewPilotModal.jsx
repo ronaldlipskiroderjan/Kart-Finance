@@ -15,20 +15,29 @@ function parseCategoriesFromPilot(pilot) {
 
 export default function NewPilotModal({ isOpen, onClose, onSuccess, pilot = null }) {
   const isEditing = !!pilot;
-  const [form, setForm] = useState(
-    isEditing
-      ? {
-          ...pilot,
-          categories: parseCategoriesFromPilot(pilot),
-          baseFee: pilot.baseFee?.toString() ?? '',
-          closingDay: pilot.closingDay?.toString() ?? '10',
-        }
-      : EMPTY
-  );
+  const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Preenche o form toda vez que o modal abre — garante dados frescos ao editar
+  useEffect(() => {
+    if (!isOpen) return;
+    setError('');
+    setDropdownOpen(false);
+    if (isEditing && pilot) {
+      setForm({
+        name:         pilot.name         ?? '',
+        baseFee:      pilot.baseFee?.toString()    ?? '',
+        closingDay:   pilot.closingDay?.toString()  ?? '10',
+        observations: pilot.observations ?? '',
+        categories:   parseCategoriesFromPilot(pilot),
+      });
+    } else {
+      setForm(EMPTY);
+    }
+  }, [isOpen, pilot?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function handleClickOutside(e) {

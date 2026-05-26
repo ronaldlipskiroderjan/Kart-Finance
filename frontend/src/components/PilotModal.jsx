@@ -62,6 +62,19 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   const monthLabel = formatMonthLabel(activeYear, activeMonth);
   const isAtCurrentMonth = isSameMonth(activeYear, activeMonth);
 
+  // Navigation limits
+  // Forward cap: active billing month (may be ahead of calendar if month was manually closed)
+  const { year: billingYear, month: billingMonth } = pilot ? getActiveBillingMonth(pilot) : { year: activeYear, month: activeMonth };
+  const isAtActiveBillingMonth = activeYear === billingYear && activeMonth === billingMonth;
+
+  // Backward limit: pilot's creation month
+  const _createdAt = pilot ? new Date(pilot.createdAt || pilot.CreatedAt) : null;
+  const creationYear  = _createdAt ? _createdAt.getFullYear() : activeYear;
+  const creationMonth = _createdAt ? _createdAt.getMonth() + 1 : activeMonth;
+  const isAtOrBeforeCreation =
+    activeYear < creationYear ||
+    (activeYear === creationYear && activeMonth <= creationMonth);
+
   // Fetch summary for an explicit year/month
   const fetchSummary = useCallback(async (year, month) => {
     if (!pilot) return;
@@ -109,8 +122,22 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     }
   }, [isOpen, fetchSummary, activeTab, activeYear, activeMonth]);
 
+  // Is the currently viewed month already closed?
+  const activeMonthRef = `${activeYear}/${String(activeMonth).padStart(2, '0')}`;
+  const isMonthClosed = (pilot?.closingHistories || []).some(
+    h => (h.monthReference || h.MonthReference) === activeMonthRef
+  );
+
+  // When navigating to a closed month, force Resumo tab
+  useEffect(() => {
+    if (isMonthClosed && activeTab !== 'summary') {
+      setActiveTab('summary');
+    }
+  }, [isMonthClosed, activeTab]);
+
   // Month navigation
   const goToPrevMonth = () => {
+    if (isAtOrBeforeCreation) return; // não vai antes do mês de criação do piloto
     let m = activeMonth - 1, y = activeYear;
     if (m < 1) { m = 12; y--; }
     setActiveYear(y);
@@ -118,7 +145,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   };
 
   const goToNextMonth = () => {
-    if (isAtCurrentMonth) return;
+    if (isAtActiveBillingMonth) return; // não passa do mês em aberto
     let m = activeMonth + 1, y = activeYear;
     if (m > 12) { m = 1; y++; }
     setActiveYear(y);
@@ -163,7 +190,8 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       skipAutoAdvanceRef.current = true;
       onRefresh();
     } catch (err) {
-      setCloseMsg(`❌ ${err.response?.data ?? 'Erro ao fechar mês.'}`);
+      const errMsg = err.response?.data?.error ?? err.response?.data ?? 'Erro ao fechar mês.';
+      setCloseMsg(`❌ ${errMsg}`);
       setShowCloseConfirm(false);
     } finally { setCloseLoading(false); }
   };
@@ -185,19 +213,31 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     const raceDate = entry.raceWeekend?.date
       ? new Date(entry.raceWeekend.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
       : '';
+    const extras = entry.Extras ?? [];
+    const totalExtras = extras.reduce((sum, ex) => sum + (ex.Amount ?? 0), 0);
+    const totalAmount = (entry.amount ?? entry.Amount ?? 0) + totalExtras;
     const lines = [
-      `🏎️ *Cobrança de Corrida — ${pilot.name}*`,
+      `📋 *Fatura RA Kart Racing — ${pilot.name}*`,
       `📅 Evento: ${raceName}`,
       ...(raceDate ? [`🗓️ Data: ${raceDate}`] : []),
       ``,
-      `✅ *Valor: ${formatBRL(entry.amount)}*`,
+      `🏎️ Corrida: ${formatBRL(entry.amount ?? entry.Amount)}`,
+      ...(extras.length > 0 ? [
+        ``,
+        `📋 *Extras:*`,
+        ...extras.map(ex => `  + ${ex.Description}: ${formatBRL(ex.Amount)}`),
+        ``,
+        `📈 *Subtotal extras: +${formatBRL(totalExtras)}*`,
+      ] : []),
+      ``,
+      `✅ *Total a pagar: ${formatBRL(totalAmount)}*`,
       ...(globalPixKey ? [
         ``,
         `🔑 *Chave PIX:* ${globalPixKey.trim()}`,
         `_(Por favor, envie o comprovante após o pagamento)_`,
       ] : []),
     ];
-    addEntry({ pilotId: pilot.id, pilotName: pilot.name, message: lines.join('\n'), amount: entry.amount, monthLabel: raceName });
+    addEntry({ pilotId: pilot.id, pilotName: pilot.name, message: lines.join('\n'), amount: totalAmount, monthLabel: raceName });
     window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
   };
 
@@ -334,53 +374,79 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex bg-zinc-800/60 rounded-xl p-1 mb-5 gap-0.5">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); if (tab.id === 'summary' || tab.id === 'close') fetchSummary(); }}
-                className={`flex-1 flex flex-row items-center justify-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? 'bg-zinc-900 text-emerald-400 shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                <Icon size={14} className="shrink-0" />
-                <span className="truncate">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── SUMMARY TAB ── */}
-        {activeTab === 'summary' && (
-          <div>
-            <div className="flex items-center justify-between mb-3">
+        {/* Month navigator + status — visible on all tabs */}
+        {(() => {
+          const activeMonthRef = `${activeYear}/${String(activeMonth).padStart(2, '0')}`;
+          const monthHistory = (pilot.closingHistories || []).find(
+            h => (h.monthReference || h.MonthReference) === activeMonthRef
+          );
+          const monthStatus = monthHistory?.status;
+          const statusMap = {
+            PAGO:     { label: 'Pago',      cls: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' },
+            PENDENTE: { label: 'Pendente',  cls: 'bg-amber-500/15 text-amber-400 border border-amber-500/30' },
+            ATRASADO: { label: 'Atrasado',  cls: 'bg-red-500/15 text-red-400 border border-red-500/30' },
+          };
+          const cfg = monthStatus ? statusMap[monthStatus] : null;
+          return (
+            <div className="flex items-center justify-between mb-4 bg-zinc-800/40 rounded-xl px-2 py-1.5">
               <button
                 onClick={goToPrevMonth}
-                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors"
+                disabled={isAtOrBeforeCreation}
+                className="p-1.5 rounded-lg hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
                 aria-label="Mês anterior"
               >
                 <ChevronLeft size={14} />
               </button>
-              <div className="text-center">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">{monthLabel}</p>
-                {!isAtCurrentMonth && (
-                  <p className="text-[9px] text-amber-400/70 mt-0.5">↑ período aberto</p>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-zinc-300 capitalize">{monthLabel}</span>
+                {cfg ? (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${cfg.cls}`}>
+                    {cfg.label}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-medium text-zinc-500 px-2 py-0.5 rounded-full bg-zinc-700/50">
+                    Em aberto
+                  </span>
                 )}
               </div>
               <button
                 onClick={goToNextMonth}
-                disabled={isAtCurrentMonth}
-                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                disabled={isAtActiveBillingMonth}
+                className="p-1.5 rounded-lg hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
                 aria-label="Próximo mês"
               >
                 <ChevronRight size={14} />
               </button>
             </div>
+          );
+        })()}
+
+        {/* Tabs — mês fechado: só Resumo */}
+        {!isMonthClosed && (
+          <div className="flex bg-zinc-800/60 rounded-xl p-1 mb-5 gap-0.5">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => { setActiveTab(tab.id); if (tab.id === 'summary' || tab.id === 'close') fetchSummary(); }}
+                  className={`flex-1 flex flex-row items-center justify-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? 'bg-zinc-900 text-emerald-400 shadow-sm'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <Icon size={14} className="shrink-0" />
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── SUMMARY TAB ── */}
+        {activeTab === 'summary' && (
+          <div>
             {loadingSummary && <p className="text-zinc-500 text-sm">Carregando…</p>}
             {summaryError && <p className="text-red-400 text-sm">{summaryError}</p>}
             {summary && !loadingSummary && (() => {
@@ -429,45 +495,71 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                     <p className="text-base font-bold text-emerald-400">{formatBRL(finalAmount)}</p>
                   </div>
 
-                  {/* Corridas pendentes */}
-                  {raceEntries.filter(e => e.status !== 'PAGO').length > 0 && (
-                    <div>
-                      <p className="text-xs text-zinc-500 font-medium mb-2 flex items-center gap-1.5">
-                        <Flag size={11} className="text-emerald-400" />
-                        Corridas em Aberto
-                      </p>
-                      <div className="space-y-2">
-                        {raceEntries.filter(e => e.status !== 'PAGO').map(entry => (
-                          <div key={entry.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-sm text-zinc-300 truncate">{entry.raceWeekend?.name ?? 'Corrida'}</span>
-                              <span className={`text-xs ${entry.status === 'ATRASADO' ? 'text-red-400' : 'text-zinc-500'}`}>
-                                {entry.status === 'ATRASADO' ? '⚠ Atrasado' : 'Pendente'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                              <span className="text-sm font-semibold text-zinc-200">{formatBRL(entry.amount)}</span>
-                              <button
-                                onClick={() => handleSendRaceWhatsApp(entry)}
-                                className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-zinc-700 transition-colors"
-                                title="Cobrar via WhatsApp"
-                              >
-                                <MessageCircle size={13} />
-                              </button>
-                              <button
-                                onClick={() => handlePayRaceEntry(entry)}
-                                disabled={payingRaceId === entry.id}
-                                className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-zinc-700 transition-colors disabled:opacity-40"
-                                title="Marcar como pago"
-                              >
-                                <CheckCircle2 size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                  {/* Corridas — filtradas pelo mês ativo */}
+                  {(() => {
+                    const racesForMonth = raceEntries.filter(entry => {
+                      if (!entry.raceWeekend?.date) return false;
+                      const d  = new Date(entry.raceWeekend.date);
+                      const rY = d.getUTCFullYear();
+                      const rM = d.getUTCMonth() + 1;
+                      // Corrida deste mês: sempre mostra (qualquer status)
+                      const isThisMonth = rY === activeYear && rM === activeMonth;
+                      // Corrida de mês anterior ainda não paga: carrega para frente
+                      const isCarryForward =
+                        (rY < activeYear || (rY === activeYear && rM < activeMonth)) &&
+                        entry.status !== 'PAGO';
+                      return isThisMonth || isCarryForward;
+                    });
+                    if (racesForMonth.length === 0) return null;
+                    return (
+                      <div>
+                        <p className="text-xs text-zinc-500 font-medium mb-2 flex items-center gap-1.5">
+                          <Flag size={11} className="text-emerald-400" />
+                          Corridas
+                        </p>
+                        <div className="space-y-2">
+                          {racesForMonth.map(entry => {
+                            const isPaid = entry.status === 'PAGO';
+                            return (
+                              <div key={entry.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-sm text-zinc-300 truncate">{entry.raceWeekend?.name ?? 'Corrida'}</span>
+                                  <span className={`text-xs mt-0.5 ${
+                                    isPaid ? 'text-emerald-400' :
+                                    entry.status === 'ATRASADO' ? 'text-red-400' : 'text-zinc-500'
+                                  }`}>
+                                    {isPaid ? '✓ Pago' : entry.status === 'ATRASADO' ? '⚠ Atrasado' : 'Pendente'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                  <span className="text-sm font-semibold text-zinc-200">{formatBRL(entry.amount)}</span>
+                                  {!isPaid && (
+                                    <>
+                                      <button
+                                        onClick={() => handleSendRaceWhatsApp(entry)}
+                                        className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-zinc-700 transition-colors"
+                                        title="Cobrar via WhatsApp"
+                                      >
+                                        <MessageCircle size={13} />
+                                      </button>
+                                      <button
+                                        onClick={() => handlePayRaceEntry(entry)}
+                                        disabled={payingRaceId === entry.id}
+                                        className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-zinc-700 transition-colors disabled:opacity-40"
+                                        title="Marcar como pago"
+                                      >
+                                        <CheckCircle2 size={13} />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Action buttons row */}
                   <button
@@ -575,33 +667,10 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
         )}
 
         {/* ── CLOSE MONTH TAB ── */}
-        {activeTab === 'close' && (
+        {activeTab === 'close' && (() => {
+          const isAlreadyClosed = isMonthClosed;
+          return (
           <div className="space-y-5">
-            {/* Month navigation */}
-            <div className="flex items-center justify-between">
-              <button
-                onClick={goToPrevMonth}
-                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors"
-                aria-label="Mês anterior"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <div className="text-center">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">{monthLabel}</p>
-                {!isAtCurrentMonth && (
-                  <p className="text-[9px] text-amber-400/70 mt-0.5">↑ período aberto</p>
-                )}
-              </div>
-              <button
-                onClick={goToNextMonth}
-                disabled={isAtCurrentMonth}
-                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
-                aria-label="Próximo mês"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-
             {summary && (
               <div className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700/50">
                 <p className="text-xs text-zinc-500 mb-2 uppercase font-semibold">Prévia da Mensagem (WhatsApp)</p>
@@ -634,7 +703,17 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
 
             {closeMsg && <p className="text-sm text-zinc-400">{closeMsg}</p>}
 
-            {!showCloseConfirm ? (
+            {isAlreadyClosed ? (
+              <div className="flex items-center gap-3 bg-emerald-900/20 border border-emerald-700/40 rounded-xl px-4 py-3.5">
+                <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-300">Mês já fechado</p>
+                  <p className="text-xs text-emerald-400/70 mt-0.5">
+                    O fechamento de <strong>{monthLabel}</strong> já foi registrado. Consulte o histórico para detalhes.
+                  </p>
+                </div>
+              </div>
+            ) : !showCloseConfirm ? (
               <Button variant="danger" className="w-full" onClick={() => setShowCloseConfirm(true)}>
                 Fechar Mês de {monthLabel}
               </Button>
@@ -647,7 +726,8 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* Communication History Modal */}

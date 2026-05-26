@@ -3,6 +3,7 @@ package controllers
 import (
 	"kartfinance-api/services"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -37,7 +38,11 @@ func (cc *ClosingController) Finalize(c *fiber.Ctx) error {
 
 	history, err := cc.Service.FinalizeClosing(uint(pilotID), year, month)
 	if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		status := 500
+		if strings.Contains(err.Error(), "já foi fechado") {
+			status = 409
+		}
+		return c.Status(status).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.JSON(history)
@@ -60,7 +65,7 @@ func (cc *ClosingController) Pay(c *fiber.Ctx) error {
 	closingID, _ := strconv.Atoi(c.Params("closingId"))
 
 	if err := cc.Service.MarkAsPaid(uint(closingID)); err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Erro ao registrar pagamento!"})
+		return c.Status(400).JSON(fiber.Map{"error": "Erro ao registrar pagamento!"})
 	}
 
 	return c.JSON(fiber.Map{"message": "Pagamento registrado com sucesso!"})

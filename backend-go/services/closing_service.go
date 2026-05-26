@@ -67,6 +67,17 @@ func (s *ClosingService) GenerateMonthlySummary(pilotID uint, year int, month in
 }
 
 func (s *ClosingService) FinalizeClosing(pilotID uint, year int, month int) (*models.ClosingHistory, error) {
+	monthRef := fmt.Sprintf("%d/%02d", year, month)
+
+	// Impede fechamento duplicado para o mesmo piloto/mês
+	var existingCount int64
+	s.Repo.DB.Model(&models.ClosingHistory{}).
+		Where("pilot_id = ? AND month_reference = ?", pilotID, monthRef).
+		Count(&existingCount)
+	if existingCount > 0 {
+		return nil, fmt.Errorf("o mês %s já foi fechado para este piloto", monthRef)
+	}
+
 	summary, err := s.GenerateMonthlySummary(pilotID, year, month)
 	if err != nil {
 		return nil, err
@@ -74,7 +85,7 @@ func (s *ClosingService) FinalizeClosing(pilotID uint, year int, month int) (*mo
 
 	history := models.ClosingHistory{
 		PilotID:             pilotID,
-		MonthReference:      fmt.Sprintf("%d/%02d", year, month),
+		MonthReference:      monthRef,
 		TotalAmount:         summary.TotalAmount,
 		BaseFee:             summary.BaseFee,
 		TotalExpenses:       summary.TotalExpenses,
@@ -103,15 +114,8 @@ func (s *ClosingService) MarkAsPaid(closingID uint) error {
 
 	now := time.Now()
 
-	if err := s.Repo.DB.Model(&history).Updates(models.ClosingHistory{
+	return s.Repo.DB.Model(&history).Updates(models.ClosingHistory{
 		Status:      models.StatusPago,
 		PaymentDate: &now,
-	}).Error; err != nil {
-		return err
-	}
-
-	// Atualiza o dia do fechamento (ClosingDay) do piloto para o dia do pagamento atual
-	return s.Repo.DB.Model(&models.Pilot{}).
-		Where("id = ?", history.PilotID).
-		Update("closing_day", now.Day()).Error
+	}).Error
 }

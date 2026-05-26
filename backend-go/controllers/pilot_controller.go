@@ -71,10 +71,21 @@ func (pc *PilotController) UpdatePilot(c *fiber.Ctx) error {
 func (pc *PilotController) DeletePilot(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	result := pc.Repo.DB.Delete(&models.Pilot{}, id)
-
-	if result.RowsAffected == 0 {
+	// Garante que o piloto existe antes de excluir
+	var pilot models.Pilot
+	if err := pc.Repo.DB.First(&pilot, id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Piloto não encontrado"})
+	}
+
+	// Remove race entries e despesas associadas (cascata manual como segurança extra)
+	pc.Repo.DB.Exec(
+		`DELETE FROM race_entry_expenses WHERE race_entry_id IN (SELECT id FROM race_entries WHERE pilot_id = ?)`,
+		id,
+	)
+	pc.Repo.DB.Exec(`DELETE FROM race_entries WHERE pilot_id = ?`, id)
+
+	if err := pc.Repo.DB.Delete(&pilot).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Erro ao excluir piloto"})
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
