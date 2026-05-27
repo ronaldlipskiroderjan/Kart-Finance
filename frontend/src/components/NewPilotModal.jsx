@@ -125,24 +125,27 @@ export default function NewPilotModal({ isOpen, onClose, onSuccess, pilot = null
             </button>
 
             {dropdownOpen && (
-              <div className="absolute z-20 left-0 right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl overflow-hidden">
-                {CATEGORIES.map((cat) => {
-                  const checked = form.categories.includes(cat);
-                  return (
-                    <label
-                      key={cat}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-700/60 cursor-pointer transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => handleToggleCategory(cat)}
-                        className="w-4 h-4 rounded border-zinc-600 bg-zinc-700 accent-emerald-500 cursor-pointer"
-                      />
-                      <span className="text-sm text-zinc-200">{cat}</span>
-                    </label>
-                  );
-                })}
+              <div className="absolute z-50 left-0 right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
+                <div className="max-h-52 overflow-y-auto">
+                  {CATEGORIES.map((cat) => {
+                    const checked = form.categories.includes(cat);
+                    return (
+                      <label
+                        key={cat}
+                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors
+                          ${checked ? 'bg-emerald-600/15 text-emerald-400' : 'text-zinc-300 hover:bg-zinc-700/70'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleToggleCategory(cat)}
+                          className="w-4 h-4 rounded border-zinc-600 bg-zinc-700 accent-emerald-500 cursor-pointer"
+                        />
+                        <span className="text-sm">{cat}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

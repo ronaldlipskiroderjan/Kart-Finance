@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getPilotHistory, getPilotById, payClosing, getMonthlySummary, getPilotRaceEntries, payRaceEntry } from '../services/api';
+import { getPilotHistory, getPilotById, payClosing, deleteClosing, getMonthlySummary, getPilotRaceEntries, payRaceEntry } from '../services/api';
 import { formatBRL, formatDate } from '../utils/formatters';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
+import PageHeader from '../components/layout/PageHeader';
 import {
   ArrowLeft, Calendar, CheckCircle, TrendingUp, TrendingDown,
   DollarSign, Clock, AlertCircle, CheckSquare, X, Flag,
-  ChevronDown, ChevronUp, Receipt,
+  ChevronDown, ChevronUp, Receipt, Trash2, History,
 } from 'lucide-react';
 
 function entryTotal(entry) {
-  return (entry.amount ?? 0) + (entry.extras ?? []).reduce((s, x) => s + (x.amount ?? 0), 0);
+  const extras = (entry.extras ?? []).reduce((s, x) => s + (x.amount ?? 0), 0);
+  const reimbursements = (entry.reimbursements ?? []).reduce((s, r) => s + (r.amount ?? 0), 0);
+  return (entry.amount ?? 0) + extras - reimbursements;
 }
 
 // ── Status badge ──────────────────────────────────
@@ -46,17 +49,21 @@ function StatusBadge({ status }) {
 }
 
 // ── Toast ─────────────────────────────────────────
-function Toast({ message, onDismiss }) {
+function Toast({ message, type = 'success', onDismiss }) {
   useEffect(() => {
     const t = setTimeout(onDismiss, 3500);
     return () => clearTimeout(t);
   }, [onDismiss]);
 
+  const isError = type === 'error';
   return (
-    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2
-                    bg-emerald-600 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl
-                    shadow-emerald-900/40 animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <CheckCircle size={16} />
+    <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2
+                    text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl
+                    animate-in fade-in slide-in-from-bottom-4 duration-300
+                    ${isError
+                      ? 'bg-red-600 shadow-red-900/40'
+                      : 'bg-emerald-600 shadow-emerald-900/40'}`}>
+      {isError ? <AlertCircle size={16} /> : <CheckCircle size={16} />}
       {message}
       <button onClick={onDismiss} className="ml-1 opacity-70 hover:opacity-100 transition-opacity">
         <X size={14} />
@@ -74,9 +81,11 @@ export default function HistoryView() {
   const [raceEntries, setRaceEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [toast, setToast] = useState('');
+  const [toast, setToast] = useState(null); // { message, type }
   const [payingId, setPayingId] = useState(null);
   const [payingRaceId, setPayingRaceId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [expandedMonthId, setExpandedMonthId] = useState(null);
   const [expandedRaceId, setExpandedRaceId] = useState(null);
   const [statementItems, setStatementItems] = useState([]);
@@ -151,7 +160,7 @@ export default function HistoryView() {
       setStatementItems(combined);
     } catch {
       setStatementItems([]);
-      setToast('Erro ao carregar detalhes do extrato.');
+      setToast({ message: 'Erro ao carregar detalhes do extrato.', type: 'error' });
     } finally {
       setLoadingStatement(false);
     }
@@ -164,9 +173,9 @@ export default function HistoryView() {
       setHistory((prev) =>
         prev.map((r) => r.id === record.id ? { ...r, status: 'PAGO' } : r)
       );
-      setToast(`Fechamento de ${record.monthReference} marcado como Pago!`);
+      setToast({ message: `Fechamento de ${record.monthReference} marcado como Pago!`, type: 'success' });
     } catch {
-      setToast('Erro ao registrar pagamento. Tente novamente.');
+      setToast({ message: 'Erro ao registrar pagamento. Tente novamente.', type: 'error' });
     } finally {
       setPayingId(null);
     }
@@ -179,11 +188,25 @@ export default function HistoryView() {
       setRaceEntries((prev) =>
         prev.map((e) => e.id === entry.id ? { ...e, status: 'PAGO' } : e)
       );
-      setToast(`Corrida "${entry.raceWeekend?.name ?? ''}" marcada como Paga!`);
+      setToast({ message: `Corrida "${entry.raceWeekend?.name ?? ''}" marcada como Paga!`, type: 'success' });
     } catch {
-      setToast('Erro ao registrar pagamento. Tente novamente.');
+      setToast({ message: 'Erro ao registrar pagamento. Tente novamente.', type: 'error' });
     } finally {
       setPayingRaceId(null);
+    }
+  }, []);
+
+  const handleDeleteClosing = useCallback(async (record) => {
+    setDeletingId(record.id);
+    try {
+      await deleteClosing(record.id);
+      setHistory((prev) => prev.filter((r) => r.id !== record.id));
+      setToast({ message: `Fechamento de ${record.monthReference} deletado com sucesso!`, type: 'success' });
+    } catch {
+      setToast({ message: 'Erro ao deletar fechamento. Tente novamente.', type: 'error' });
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
     }
   }, []);
 
@@ -192,24 +215,19 @@ export default function HistoryView() {
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur border-b border-zinc-800 px-4 lg:px-8 py-4 flex items-center gap-3">
-          <button
-            onClick={() => navigate('/')}
-            className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg p-1.5 transition-colors"
-            aria-label="Voltar"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-base lg:text-lg font-semibold text-zinc-100">
-              {pilot ? `Histórico — ${pilot.name}` : 'Histórico de Fechamentos'}
-            </h1>
-            {pilot?.category && (
-              <p className="text-xs text-zinc-500">{pilot.category}</p>
-            )}
-          </div>
-        </header>
+        <PageHeader
+          icon={History}
+          subtitle={pilot ? pilot.name : 'Histórico de Fechamentos'}
+          left={
+            <button
+              onClick={() => navigate('/')}
+              className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg p-1.5 transition-colors"
+              aria-label="Voltar"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          }
+        />
 
         {/* Content */}
         <div className="flex-1 px-4 md:px-6 lg:px-8 py-6 pb-28 lg:pb-8">
@@ -307,7 +325,7 @@ export default function HistoryView() {
                             )}
                           </div>
 
-                          {/* Painel de gastos extras */}
+                          {/* Painel expandido: extras + reembolsos */}
                           <AnimatePresence>
                             {isOpen && (
                               <motion.div
@@ -366,6 +384,8 @@ export default function HistoryView() {
                     {history.map((record) => {
                       const isPending = record.status === 'PENDENTE' || record.status === 'ATRASADO';
                       const isPayingThis = payingId === record.id;
+                      const isDeletingThis = deletingId === record.id;
+                      const isConfirmingDelete = confirmDeleteId === record.id;
 
                       return (
                         <div key={record.id} className="glass-card p-5 transition-all duration-200">
@@ -390,6 +410,44 @@ export default function HistoryView() {
                                     <CheckSquare size={12} />
                                     {isPayingThis ? 'Salvando…' : 'Marcar como Pago'}
                                   </button>
+                                )}
+                                {/* Botão deletar / confirmação */}
+                                {!isConfirmingDelete ? (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(record.id); }}
+                                    disabled={isDeletingThis}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium
+                                               bg-red-500/10 text-red-400 border border-red-700/30
+                                               hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                                    title="Deletar fechamento"
+                                  >
+                                    <Trash2 size={12} />
+                                    Deletar
+                                  </button>
+                                ) : (
+                                  <div
+                                    className="flex items-center gap-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span className="text-xs text-red-400 font-medium">Confirmar?</span>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteClosing(record); }}
+                                      disabled={isDeletingThis}
+                                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold
+                                                 bg-red-600 text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+                                    >
+                                      <Trash2 size={11} />
+                                      {isDeletingThis ? 'Deletando…' : 'Sim'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
+                                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium
+                                                 bg-zinc-700 text-zinc-300 hover:bg-zinc-600 transition-colors"
+                                    >
+                                      <X size={11} />
+                                      Não
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -504,7 +562,7 @@ export default function HistoryView() {
         </div>
       </main>
 
-      {toast && <Toast message={toast} onDismiss={() => setToast('')} />}
+      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
 
       <BottomNav />
     </div>

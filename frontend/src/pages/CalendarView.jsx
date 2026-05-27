@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { getPilots } from '../services/api';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
-import { ChevronLeft, ChevronRight, Calendar, Flag, RefreshCw } from 'lucide-react';
+import PageHeader from '../components/layout/PageHeader';
+import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Flag, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Badge from '../components/ui/Badge';
 
@@ -74,29 +75,20 @@ export default function CalendarView() {
     <div className="flex min-h-screen">
       <Sidebar />
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur border-b border-zinc-800 px-4 lg:px-8 py-3 lg:py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-bold text-zinc-100">Calendário</h1>
-              <p className="text-xs text-zinc-500 mt-0.5 hidden sm:block">Datas de fechamento dos pilotos</p>
-            </div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <button onClick={load} disabled={loading} className="btn-secondary p-1.5 sm:p-2 rounded-xl" aria-label="Recarregar">
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              </button>
-              <button onClick={prevMonth} className="btn-secondary p-1.5 sm:p-2 rounded-xl" aria-label="Mês anterior">
-                <ChevronLeft size={16} />
-              </button>
-              <span className="text-xs sm:text-sm font-semibold text-zinc-200 capitalize text-center min-w-[96px] sm:min-w-[140px]">
-                {monthLabel}
-              </span>
-              <button onClick={nextMonth} className="btn-secondary p-1.5 sm:p-2 rounded-xl" aria-label="Próximo mês">
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-        </header>
+        <PageHeader icon={CalendarDays} title="Calendário" subtitle="Datas de fechamento dos pilotos">
+          <button onClick={load} disabled={loading} className="btn-secondary p-1.5 rounded-xl" aria-label="Recarregar">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button onClick={prevMonth} className="btn-secondary p-1.5 rounded-xl" aria-label="Mês anterior">
+            <ChevronLeft size={15} />
+          </button>
+          <span className="text-xs font-semibold text-zinc-200 capitalize text-center min-w-[80px] sm:min-w-[120px]">
+            {monthLabel}
+          </span>
+          <button onClick={nextMonth} className="btn-secondary p-1.5 rounded-xl" aria-label="Próximo mês">
+            <ChevronRight size={15} />
+          </button>
+        </PageHeader>
 
         <div className="flex-1 px-4 md:px-6 lg:px-8 py-6 pb-28 lg:pb-8 space-y-4">
           {/* Legend */}

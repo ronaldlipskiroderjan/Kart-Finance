@@ -158,7 +158,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     e.preventDefault();
     setExpLoading(true); setExpMsg('');
     try {
-      await createExpense({ pilot: { id: pilot.id }, description: expForm.description, amount: parseFloat(expForm.amount) });
+      await createExpense({ pilot: { id: pilot.id }, description: expForm.description, amount: parseFloat(expForm.amount), year: activeYear, month: activeMonth });
       setExpMsg('✅ Gasto adicionado com sucesso!');
       setExpForm({ description: '', amount: '' });
       onRefresh();
@@ -319,10 +319,11 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="" size="lg">
         {/* Pilot header */}
-        <div className="flex items-start justify-between gap-3 mb-5 -mt-1">
-          <div>
-            <h2 className="text-xl font-bold text-zinc-100">{pilot.name}</h2>
-            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+        <div className="flex items-start justify-between gap-2 mb-5 -mt-1">
+          {/* Nome + badges — min-w-0 garante truncate em telas estreitas */}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg sm:text-xl font-bold text-zinc-100 truncate">{pilot.name}</h2>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
               {pilot.category &&
                 pilot.category.split(',').map((c) => c.trim()).filter(Boolean).map((cat) => (
                   <Badge key={cat} label={cat} />
@@ -341,35 +342,36 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          {/* Botões de ação — shrink-0 impede que sejam comprimidos */}
+          <div className="flex items-center gap-0.5 shrink-0">
             <button
               onClick={() => setShowCommHistory(true)}
-              className="text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 rounded-lg p-1.5 transition-colors"
+              className="text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 rounded-lg p-2 transition-colors"
               title="Histórico de cobranças"
             >
-              <MessageCircle size={16} />
+              <MessageCircle size={15} />
             </button>
             <button
               onClick={() => { onClose(); onEdit(pilot); }}
-              className="text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 rounded-lg p-1.5 transition-colors"
+              className="text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 rounded-lg p-2 transition-colors"
               title="Editar piloto"
             >
-              <Pencil size={16} />
+              <Pencil size={15} />
             </button>
             <button
               onClick={() => { onClose(); navigate(`/history/${pilot.id}`); }}
-              className="text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 rounded-lg p-1.5 transition-colors"
+              className="text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 rounded-lg p-2 transition-colors"
               title="Ver histórico"
             >
-              <History size={16} />
+              <History size={15} />
             </button>
             <button
               onClick={handleDelete}
               disabled={deleteLoading}
-              className="text-zinc-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg p-1.5 transition-colors"
+              className="text-zinc-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg p-2 transition-colors"
               title="Excluir piloto"
             >
-              <Trash2 size={16} />
+              <Trash2 size={15} />
             </button>
           </div>
         </div>
@@ -426,18 +428,18 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
           <div className="flex bg-zinc-800/60 rounded-xl p-1 mb-5 gap-0.5">
             {TABS.map((tab) => {
               const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); if (tab.id === 'summary' || tab.id === 'close') fetchSummary(); }}
-                  className={`flex-1 flex flex-row items-center justify-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? 'bg-zinc-900 text-emerald-400 shadow-sm'
-                      : 'text-zinc-500 hover:text-zinc-300'
+                  className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1
+                              py-2 px-0.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
+                    isActive ? 'bg-zinc-900 text-emerald-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
                   }`}
                 >
                   <Icon size={14} className="shrink-0" />
-                  <span className="truncate">{tab.label}</span>
+                  <span className="truncate leading-tight">{tab.label}</span>
                 </button>
               );
             })}
@@ -483,16 +485,16 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between bg-zinc-800/80 rounded-xl px-4 py-3 border border-zinc-700/50">
-                    <div className="text-xs text-zinc-400">
+                  <div className="flex items-center justify-between gap-3 bg-zinc-800/80 rounded-xl px-4 py-3 border border-zinc-700/50">
+                    <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-zinc-400 min-w-0">
                       <span className="text-zinc-500">Mensalidade</span>
-                      <span className="text-zinc-600 mx-1">+</span>
+                      <span className="text-zinc-600">+</span>
                       <span className="text-red-400">Extras</span>
                       {(summary.previousDebt ?? 0) > 0 && (
-                        <><span className="text-zinc-600 mx-1">+</span><span className="text-orange-400">Dívida</span></>
+                        <><span className="text-zinc-600">+</span><span className="text-orange-400">Dívida</span></>
                       )}
                     </div>
-                    <p className="text-base font-bold text-emerald-400">{formatBRL(finalAmount)}</p>
+                    <p className="text-base font-bold text-emerald-400 shrink-0">{formatBRL(finalAmount)}</p>
                   </div>
 
                   {/* Corridas — filtradas pelo mês ativo */}
@@ -521,8 +523,9 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                           {racesForMonth.map(entry => {
                             const isPaid = entry.status === 'PAGO';
                             return (
-                              <div key={entry.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
-                                <div className="flex flex-col min-w-0">
+                              <div key={entry.id} className="flex items-center gap-2 bg-zinc-800/40 px-3 py-2 rounded-lg">
+                                {/* Nome + status — min-w-0 garante truncate */}
+                                <div className="flex flex-col min-w-0 flex-1">
                                   <span className="text-sm text-zinc-300 truncate">{entry.raceWeekend?.name ?? 'Corrida'}</span>
                                   <span className={`text-xs mt-0.5 ${
                                     isPaid ? 'text-emerald-400' :
@@ -531,7 +534,8 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                                     {isPaid ? '✓ Pago' : entry.status === 'ATRASADO' ? '⚠ Atrasado' : 'Pendente'}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                {/* Valor + ações — shrink-0 mantém no lugar */}
+                                <div className="flex items-center gap-1 shrink-0">
                                   <span className="text-sm font-semibold text-zinc-200">{formatBRL(entry.amount)}</span>
                                   {!isPaid && (
                                     <>
@@ -578,13 +582,13 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                       <p className="text-xs text-zinc-500 font-medium mb-2">Gastos</p>
                       <div className="space-y-1.5">
                         {expensesDetail.map((e) => (
-                          <div key={e.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
-                            <div className="flex flex-col min-w-0 flex-1 mr-2">
+                          <div key={e.id} className="flex items-center gap-2 bg-zinc-800/40 px-3 py-2 rounded-lg">
+                            <div className="flex flex-col min-w-0 flex-1">
                               <span className="text-sm text-zinc-300 truncate">{e.description}</span>
                               <span className="text-xs text-zinc-500">{formatDate(e.createdAt)}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-red-400">+{formatBRL(e.amount)}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-sm text-red-400 whitespace-nowrap">+{formatBRL(e.amount)}</span>
                               <button onClick={() => { deleteExpense(e.id).then(() => { fetchSummary(); onRefresh(); }); }}
                                 className="text-zinc-600 hover:text-red-400 transition-colors" title="Remover">
                                 <X size={13} />
@@ -601,13 +605,13 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                       <p className="text-xs text-zinc-500 font-medium mb-2">Reembolsos</p>
                       <div className="space-y-1.5">
                         {reimbursementsDetail.map((r) => (
-                          <div key={r.id} className="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
-                            <div className="flex flex-col min-w-0 flex-1 mr-2">
+                          <div key={r.id} className="flex items-center gap-2 bg-zinc-800/40 px-3 py-2 rounded-lg">
+                            <div className="flex flex-col min-w-0 flex-1">
                               <span className="text-sm text-zinc-300 truncate">{r.description}</span>
                               <span className="text-xs text-zinc-500">{formatDate(r.createdAt)}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-green-400">-{formatBRL(r.amount)}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-sm text-green-400 whitespace-nowrap">-{formatBRL(r.amount)}</span>
                               <button onClick={() => { deleteReimbursement(r.id).then(() => { fetchSummary(); onRefresh(); }); }}
                                 className="text-zinc-600 hover:text-red-400 transition-colors" title="Remover">
                                 <X size={13} />
@@ -674,7 +678,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
             {summary && (
               <div className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700/50">
                 <p className="text-xs text-zinc-500 mb-2 uppercase font-semibold">Prévia da Mensagem (WhatsApp)</p>
-                <div className="bg-zinc-900/50 p-3 rounded-lg text-sm text-zinc-300 font-mono whitespace-pre-wrap break-all select-all overflow-hidden">
+                <div className="bg-zinc-900/50 p-3 rounded-lg text-xs text-zinc-300 font-mono whitespace-pre-wrap break-words select-all max-h-40 overflow-y-auto">
                   {getWhatsAppMessageLines().join('\n')}
                 </div>
                 <button

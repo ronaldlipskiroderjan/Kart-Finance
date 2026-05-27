@@ -53,18 +53,31 @@ func (s *RaceService) DeleteRaceWeekend(id uint) error {
 	return s.Repo.DeleteRaceWeekend(id)
 }
 
-func (s *RaceService) AddPilotToRace(raceWeekendID, pilotID uint, amount float64) (*models.RaceEntry, error) {
-	exists, err := s.Repo.ExistsRaceEntryForPilot(raceWeekendID, pilotID)
-	if err != nil {
-		return nil, err
-	}
-	if exists {
-		return nil, errors.New("piloto já adicionado a este fim de semana")
+func (s *RaceService) AddPilotToRace(raceWeekendID uint, pilotID *uint, guestPilotID *uint, amount float64) (*models.RaceEntry, error) {
+	if pilotID != nil {
+		exists, err := s.Repo.ExistsRaceEntryForPilot(raceWeekendID, *pilotID)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, errors.New("piloto já adicionado a este fim de semana")
+		}
+	} else if guestPilotID != nil {
+		exists, err := s.Repo.ExistsRaceEntryForGuestPilot(raceWeekendID, *guestPilotID)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, errors.New("piloto convidado já adicionado a este fim de semana")
+		}
+	} else {
+		return nil, errors.New("informe um piloto mensal ou um nome de piloto convidado")
 	}
 
 	entry := &models.RaceEntry{
 		RaceWeekendID: raceWeekendID,
 		PilotID:       pilotID,
+		GuestPilotID:  guestPilotID,
 		Amount:        amount,
 		Status:        models.RaceStatusPendente,
 		DueDate:       time.Now().AddDate(0, 0, 7),
@@ -74,6 +87,14 @@ func (s *RaceService) AddPilotToRace(raceWeekendID, pilotID uint, amount float64
 	}
 
 	return s.Repo.FindRaceEntryByID(entry.ID)
+}
+
+func (s *RaceService) GetGuestPilots() ([]models.GuestPilot, error) {
+	return s.Repo.FindAllGuestPilots()
+}
+
+func (s *RaceService) FindOrCreateGuestPilot(name string) (*models.GuestPilot, error) {
+	return s.Repo.FindOrCreateGuestPilot(name)
 }
 
 func (s *RaceService) UpdateRaceEntry(entryID uint, amount float64) (*models.RaceEntry, error) {
@@ -106,6 +127,46 @@ func (s *RaceService) AddEntryExpense(entryID uint, description string, amount f
 
 func (s *RaceService) RemoveEntryExpense(expenseID uint) error {
 	return s.Repo.DeleteRaceEntryExpense(expenseID)
+}
+
+func (s *RaceService) AddEntryReimbursement(entryID uint, description string, amount float64) (*models.RaceEntryReimbursement, error) {
+	reimbursement := &models.RaceEntryReimbursement{
+		RaceEntryID: entryID,
+		Description: description,
+		Amount:      amount,
+	}
+	if err := s.Repo.CreateRaceEntryReimbursement(reimbursement); err != nil {
+		return nil, err
+	}
+	return reimbursement, nil
+}
+
+func (s *RaceService) RemoveEntryReimbursement(reimbursementID uint) error {
+	return s.Repo.DeleteRaceEntryReimbursement(reimbursementID)
+}
+
+// ─── Race Agenda ──────────────────────────────────────────────────────────────
+
+func (s *RaceService) GetAgenda(raceWeekendID uint) (*models.RaceAgenda, error) {
+	return s.Repo.FindOrCreateAgenda(raceWeekendID)
+}
+
+func (s *RaceService) SetAgendaSaldo(raceWeekendID uint, saldo float64) (*models.RaceAgenda, error) {
+	return s.Repo.UpdateAgendaSaldo(raceWeekendID, saldo)
+}
+
+func (s *RaceService) AddAgendaExpense(raceWeekendID uint, description string, amount float64) (*models.RaceAgenda, error) {
+	if description == "" {
+		return nil, errors.New("descrição é obrigatória")
+	}
+	if amount <= 0 {
+		return nil, errors.New("valor deve ser maior que zero")
+	}
+	return s.Repo.CreateAgendaExpense(raceWeekendID, description, amount)
+}
+
+func (s *RaceService) DeleteAgendaExpense(expenseID uint) error {
+	return s.Repo.DeleteAgendaExpense(expenseID)
 }
 
 func (s *RaceService) MarkEntryAsPaid(entryID uint) (*models.RaceEntry, error) {

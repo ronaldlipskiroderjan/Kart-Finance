@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
+import PageHeader from '../components/layout/PageHeader';
 import { getAdmins, updateAdmin, deleteAdmin } from '../services/api';
-import { User, Users, Save, Plus, Trash2, Loader, QrCode, Lock, Mail, LogOut, AlertCircle, CheckCircle2, Globe } from 'lucide-react';
+import { User, Users, Save, Plus, Trash2, Loader, QrCode, Lock, Mail, LogOut, AlertCircle, CheckCircle2, Globe, Settings as SettingsIcon } from 'lucide-react';
 import { validatePixKey } from '../utils/pixQR';
 import Button from '../components/ui/Button';
 import NewAdminModal from '../components/NewAdminModal';
@@ -87,26 +88,13 @@ function Settings() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0">
+      <main className="flex-1 flex flex-col min-w-0 pb-safe-nav lg:pb-0">
         
-        {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-30 bg-zinc-950/90 backdrop-blur border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
-          <span className="text-lg font-black">
-            <span className="text-emerald-400">RA</span>
-            <span className="text-zinc-100"> Kart Racing</span>
-          </span>
-          <button onClick={handleLogout} className="text-zinc-500 hover:text-zinc-200 transition-colors" aria-label="Sair">
-            <LogOut size={20} />
+        <PageHeader icon={SettingsIcon} title="Configurações" subtitle="Conta, PIX e acesso da equipe">
+          <button onClick={handleLogout} className="lg:hidden text-zinc-500 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-900/20" aria-label="Sair">
+            <LogOut size={18} />
           </button>
-        </header>
-
-        {/* Desktop page title */}
-        <div className="hidden lg:flex items-center justify-between px-8 pt-8 pb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-100">Configurações</h1>
-            <p className="text-sm text-zinc-500 mt-0.5">Gerencie sua conta, chaves PIX e acesso da equipe.</p>
-          </div>
-        </div>
+        </PageHeader>
 
         {/* Content */}
         <div className="flex-1 max-w-4xl w-full mx-auto px-4 md:px-6 pt-6 pb-4 lg:pt-0 lg:px-8 lg:pb-8 space-y-6">
@@ -291,7 +279,7 @@ function Settings() {
       {activeTab === 'team' && (
         <button
           onClick={() => setShowNewAdmin(true)}
-          className="fixed bottom-20 lg:bottom-8 right-5 lg:right-8 z-40 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white shadow-xl shadow-emerald-500/30 flex items-center justify-center transition-all duration-200 active:scale-90"
+          className="fixed bottom-28 lg:bottom-8 right-5 lg:right-8 z-40 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white shadow-xl shadow-emerald-500/30 flex items-center justify-center transition-all duration-200 active:scale-90"
           aria-label="Novo Administrador"
         >
           <Plus size={26} strokeWidth={2.5} />
