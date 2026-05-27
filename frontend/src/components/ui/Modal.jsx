@@ -47,7 +47,10 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
           </button>
         </div>
         {/* Content */}
-        <div className="overflow-y-auto flex-1 px-4 py-4 sm:px-6 sm:py-5">
+        <div
+          className="overflow-y-auto flex-1 px-4 pt-4 sm:px-6 sm:pt-5"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1.25rem)' }}
+        >
           {children}
         </div>
       </div>

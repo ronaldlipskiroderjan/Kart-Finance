@@ -269,7 +269,7 @@ export default function Dashboard() {
       {/* Mobile FAB */}
       <button
         onClick={() => setShowNewPilot(true)}
-        className="lg:hidden fixed bottom-20 right-5 z-40 w-14 h-14 rounded-full bg-emerald-500
+        className="fab-safe-bottom lg:hidden fixed right-5 z-40 w-14 h-14 rounded-full bg-emerald-500
                    hover:bg-emerald-400 text-white shadow-xl shadow-emerald-500/30 flex items-center
                    justify-center transition-all duration-200 active:scale-90"
         aria-label="Novo Piloto"

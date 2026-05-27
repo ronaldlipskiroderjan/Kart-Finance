@@ -62,7 +62,18 @@
    Garante que o conteúdo não fique atrás da barra de navegação,
    incluindo o espaço do home indicator do iPhone. */
 .pb-safe-nav {
-  padding-bottom: calc(60px + env(safe-area-inset-bottom) + 16px);
+  padding-bottom: calc(56px + env(safe-area-inset-bottom) + 16px);
+}
+
+/* FAB (botão flutuante) — posicionado acima do bottom nav em qualquer device,
+   incluindo iPhone com home indicator (safe-area-inset-bottom). */
+.fab-safe-bottom {
+  bottom: calc(env(safe-area-inset-bottom) + 56px + 20px);
+}
+@media (min-width: 1024px) {
+  .fab-safe-bottom {
+    bottom: 2rem; /* lg: equivale a bottom-8 */
+  }
 }
 
 /* Smooth page-level transitions */
