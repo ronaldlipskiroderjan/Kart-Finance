@@ -523,7 +523,7 @@ function RaceAgendaModal({ isOpen, onClose, race }) {
 
 // ─── RaceWeekendModal ──────────────────────────────────────────────────────────
 
-function RaceWeekendModal({ isOpen, onClose, race, onRefresh }) {
+function RaceWeekendModal({ isOpen, onClose, race, onRefresh, onEdit, onDelete }) {
   const { globalPixKey } = useAuth();
   const { addEntry } = useCommHistory();
 
@@ -538,6 +538,7 @@ function RaceWeekendModal({ isOpen, onClose, race, onRefresh }) {
   const [reimbLoading, setReimbLoading] = useState({});
   const [menuOpen, setMenuOpen]         = useState({});
   const [menuPos,  setMenuPos]          = useState({});
+  const [showAgenda, setShowAgenda]     = useState(false);
   const [toast, setToast]               = useState(null); // { message, type }
   const showToast = (message, type = 'success') => setToast({ message, type });
 
@@ -670,20 +671,47 @@ function RaceWeekendModal({ isOpen, onClose, race, onRefresh }) {
       {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
       <Modal isOpen={isOpen} onClose={onClose} title={race.name} size="lg">
 
-        {/* Subtítulo: data + pilotos + descrição */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 -mt-1 mb-4">
-          <span className="flex items-center gap-1"><Calendar size={11} />{formatDateBR(race.date)}</span>
-          <span className="flex items-center gap-1"><Users size={11} />{entries.length} piloto{entries.length !== 1 ? 's' : ''}</span>
-          {race.description && <span className="italic text-zinc-600">{race.description}</span>}
+        {/* Subtítulo: data + pilotos + descrição + botões de ação */}
+        <div className="flex flex-wrap items-center justify-between gap-y-2 -mt-1 mb-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+            <span className="flex items-center gap-1"><Calendar size={11} />{formatDateBR(race.date)}</span>
+            <span className="flex items-center gap-1"><Users size={11} />{entries.length} piloto{entries.length !== 1 ? 's' : ''}</span>
+            {race.description && <span className="italic text-zinc-600">{race.description}</span>}
+          </div>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              onClick={() => { onClose(); onEdit(race); }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                         text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 transition-colors"
+              title="Editar evento"
+            >
+              <Pencil size={13} />
+              <span className="hidden sm:inline">Editar</span>
+            </button>
+            <button
+              onClick={() => setShowAgenda(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                         text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 transition-colors"
+              title="Viagem — controle de saldo e gastos"
+            >
+              <Wallet size={13} />
+              <span className="hidden sm:inline">Viagem</span>
+            </button>
+            <button
+              onClick={() => { onClose(); onDelete(race.id); }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                         text-zinc-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+              title="Excluir evento"
+            >
+              <Trash2 size={13} />
+              <span className="hidden sm:inline">Excluir</span>
+            </button>
+          </div>
         </div>
 
         {/* Resumo financeiro */}
         {entries.length > 0 && (
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="bg-zinc-800/60 rounded-xl p-2.5 text-center">
-              <p className="text-[10px] text-zinc-500 mb-0.5">Total</p>
-              <p className="text-xs font-bold text-zinc-200">{formatBRL(total)}</p>
-            </div>
+          <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="bg-zinc-800/60 rounded-xl p-2.5 text-center">
               <p className="text-[10px] text-zinc-500 mb-0.5">Recebido</p>
               <p className="text-xs font-bold text-emerald-400">{formatBRL(paid)}</p>
@@ -966,6 +994,11 @@ function RaceWeekendModal({ isOpen, onClose, race, onRefresh }) {
         onSave={onRefresh}
         entry={editEntry}
       />
+      <RaceAgendaModal
+        isOpen={showAgenda}
+        onClose={() => setShowAgenda(false)}
+        race={race}
+      />
     </>
   );
 }
@@ -1026,11 +1059,7 @@ function RaceWeekendCard({ race, onEdit, onDelete, onRefresh }) {
 
         {/* Rodapé — valores em grid + botões de ação */}
         <div className="flex items-end justify-between gap-3 pt-3 border-t border-zinc-800 mt-auto">
-          <div className="grid grid-cols-3 gap-x-4">
-            <div>
-              <p className="text-xs text-zinc-500 mb-0.5">Total</p>
-              <p className="text-sm font-bold text-zinc-200">{formatBRL(total)}</p>
-            </div>
+          <div className="grid grid-cols-2 gap-x-4">
             <div>
               <p className="text-xs text-zinc-500 mb-0.5">Recebido</p>
               <p className="text-sm font-medium text-emerald-400">{formatBRL(paid)}</p>
@@ -1075,6 +1104,8 @@ function RaceWeekendCard({ race, onEdit, onDelete, onRefresh }) {
         onClose={() => setShowModal(false)}
         race={race}
         onRefresh={onRefresh}
+        onEdit={onEdit}
+        onDelete={onDelete}
       />
       <RaceAgendaModal
         isOpen={showAgenda}
