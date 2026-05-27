@@ -82,6 +82,7 @@ func main() {
 	raceGroup := app.Group("/races")
 	raceGroup.Get("/", raceController.GetAll)
 	raceGroup.Post("/", raceController.Create)
+	raceGroup.Get("/guest-pilots", raceController.GetGuestPilots)
 	raceGroup.Get("/pilot/:pilotId/entries", raceController.GetEntriesForPilot)
 	raceGroup.Get("/:id", raceController.GetByID)
 	raceGroup.Put("/:id", raceController.Update)
@@ -92,6 +93,13 @@ func main() {
 	raceGroup.Put("/entries/:entryId/pay", raceController.PayEntry)
 	raceGroup.Post("/entries/:entryId/expenses", raceController.AddEntryExpense)
 	raceGroup.Delete("/entries/expenses/:expenseId", raceController.DeleteEntryExpense)
+	raceGroup.Post("/entries/:entryId/reimbursements", raceController.AddEntryReimbursement)
+	raceGroup.Delete("/entries/reimbursements/:reimbursementId", raceController.DeleteEntryReimbursement)
+	// Agenda (caixinha) por fim de semana — controle pessoal, sem vínculo com pilotos
+	raceGroup.Get("/:id/agenda", raceController.GetAgenda)
+	raceGroup.Put("/:id/agenda/saldo", raceController.SetAgendaSaldo)
+	raceGroup.Post("/:id/agenda/expenses", raceController.AddAgendaExpense)
+	raceGroup.Delete("/agenda/expenses/:expenseId", raceController.DeleteAgendaExpense)
 
 	//Rotas de Fechamento
 	closingGroup := app.Group("/closing")
@@ -99,6 +107,7 @@ func main() {
 	closingGroup.Post("/:pilot_id/finalize", closingController.Finalize)
 	closingGroup.Get("/:pilotId/history", closingController.GetHistory)
 	closingGroup.Put("/history/:closingId/pay", closingController.Pay)
+	closingGroup.Delete("/history/:closingId", closingController.Delete)
 
 	// Endpoint de teste: dispara manualmente os jobs diários (fechamento + atrasados)
 	// Usar apenas para verificação — remover ou proteger em produção

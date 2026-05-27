@@ -3,6 +3,7 @@ package controllers
 import (
 	"kartfinance-api/services"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,8 +24,9 @@ type createRaceWeekendInput struct {
 }
 
 type addRaceEntryInput struct {
-	PilotID uint    `json:"PilotID"`
-	Amount  float64 `json:"Amount"`
+	PilotID        *uint   `json:"PilotID"`        // piloto mensal (opcional)
+	GuestPilotName string  `json:"GuestPilotName"` // nome do piloto convidado (opcional)
+	Amount         float64 `json:"Amount"`
 }
 
 type updateRaceEntryInput struct {
@@ -116,11 +118,38 @@ func (rc *RaceController) AddEntry(c *fiber.Ctx) error {
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Dados inválidos."})
 	}
-	entry, err := rc.Service.AddPilotToRace(uint(raceID), input.PilotID, input.Amount)
+
+	var pilotID *uint
+	var guestPilotID *uint
+
+	guestName := strings.TrimSpace(input.GuestPilotName)
+	if guestName != "" {
+		// Piloto convidado: busca ou cria pelo nome
+		guest, err := rc.Service.FindOrCreateGuestPilot(guestName)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
+		guestPilotID = &guest.ID
+	} else if input.PilotID != nil {
+		pilotID = input.PilotID
+	} else {
+		return c.Status(400).JSON(fiber.Map{"error": "Informe um piloto mensal ou o nome de um piloto convidado."})
+	}
+
+	entry, err := rc.Service.AddPilotToRace(uint(raceID), pilotID, guestPilotID, input.Amount)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(201).JSON(entry)
+}
+
+// GET /races/guest-pilots
+func (rc *RaceController) GetGuestPilots(c *fiber.Ctx) error {
+	guests, err := rc.Service.GetGuestPilots()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Erro ao buscar pilotos convidados."})
+	}
+	return c.JSON(guests)
 }
 
 // PUT /races/entries/:entryId
@@ -169,6 +198,29 @@ func (rc *RaceController) DeleteEntryExpense(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Gasto removido com sucesso!"})
 }
 
+// POST /races/entries/:entryId/reimbursements
+func (rc *RaceController) AddEntryReimbursement(c *fiber.Ctx) error {
+	entryID, _ := strconv.Atoi(c.Params("entryId"))
+	var input addRaceEntryExpenseInput // mesma estrutura: Description + Amount
+	if err := c.BodyParser(&input); err != nil || input.Description == "" || input.Amount <= 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "Dados inválidos."})
+	}
+	reimbursement, err := rc.Service.AddEntryReimbursement(uint(entryID), input.Description, input.Amount)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(201).JSON(reimbursement)
+}
+
+// DELETE /races/entries/reimbursements/:reimbursementId
+func (rc *RaceController) DeleteEntryReimbursement(c *fiber.Ctx) error {
+	reimbursementID, _ := strconv.Atoi(c.Params("reimbursementId"))
+	if err := rc.Service.RemoveEntryReimbursement(uint(reimbursementID)); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Erro ao remover reembolso."})
+	}
+	return c.JSON(fiber.Map{"message": "Reembolso removido com sucesso!"})
+}
+
 // PUT /races/entries/:entryId/pay
 func (rc *RaceController) PayEntry(c *fiber.Ctx) error {
 	entryID, _ := strconv.Atoi(c.Params("entryId"))
@@ -177,4 +229,62 @@ func (rc *RaceController) PayEntry(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(entry)
+}
+
+// ─── Race Agenda ──────────────────────────────────────────────────────────────
+
+type setAgendaSaldoInput struct {
+	Saldo float64 `json:"Saldo"`
+}
+
+type addAgendaExpenseInput struct {
+	Description string  `json:"Description"`
+	Amount      float64 `json:"Amount"`
+}
+
+// GET /races/:id/agenda
+func (rc *RaceController) GetAgenda(c *fiber.Ctx) error {
+	raceID, _ := strconv.Atoi(c.Params("id"))
+	agenda, err := rc.Service.GetAgenda(uint(raceID))
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Erro ao buscar agenda."})
+	}
+	return c.JSON(agenda)
+}
+
+// PUT /races/:id/agenda/saldo
+func (rc *RaceController) SetAgendaSaldo(c *fiber.Ctx) error {
+	raceID, _ := strconv.Atoi(c.Params("id"))
+	var input setAgendaSaldoInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Dados inválidos."})
+	}
+	agenda, err := rc.Service.SetAgendaSaldo(uint(raceID), input.Saldo)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(agenda)
+}
+
+// POST /races/:id/agenda/expenses
+func (rc *RaceController) AddAgendaExpense(c *fiber.Ctx) error {
+	raceID, _ := strconv.Atoi(c.Params("id"))
+	var input addAgendaExpenseInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Dados inválidos."})
+	}
+	agenda, err := rc.Service.AddAgendaExpense(uint(raceID), input.Description, input.Amount)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(201).JSON(agenda)
+}
+
+// DELETE /races/agenda/expenses/:expenseId
+func (rc *RaceController) DeleteAgendaExpense(c *fiber.Ctx) error {
+	expenseID, _ := strconv.Atoi(c.Params("expenseId"))
+	if err := rc.Service.DeleteAgendaExpense(uint(expenseID)); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Erro ao remover gasto da agenda."})
+	}
+	return c.JSON(fiber.Map{"message": "Gasto removido da agenda."})
 }

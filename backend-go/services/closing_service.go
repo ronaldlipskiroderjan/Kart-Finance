@@ -119,3 +119,13 @@ func (s *ClosingService) MarkAsPaid(closingID uint) error {
 		PaymentDate: &now,
 	}).Error
 }
+
+func (s *ClosingService) DeleteClosing(closingID uint) error {
+	var history models.ClosingHistory
+
+	if err := s.Repo.DB.First(&history, closingID).Error; err != nil {
+		return fmt.Errorf("fechamento não encontrado")
+	}
+
+	return s.Repo.DB.Delete(&history).Error
+}

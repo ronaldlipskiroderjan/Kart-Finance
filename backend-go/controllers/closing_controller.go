@@ -60,7 +60,7 @@ func (cc *ClosingController) GetHistory(c *fiber.Ctx) error {
 	return c.JSON(history)
 }
 
-// Pay - PUT /closing/:pilot_id/pay
+// Pay - PUT /closing/history/:closingId/pay
 func (cc *ClosingController) Pay(c *fiber.Ctx) error {
 	closingID, _ := strconv.Atoi(c.Params("closingId"))
 
@@ -69,4 +69,15 @@ func (cc *ClosingController) Pay(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "Pagamento registrado com sucesso!"})
+}
+
+// Delete - DELETE /closing/history/:closingId
+func (cc *ClosingController) Delete(c *fiber.Ctx) error {
+	closingID, _ := strconv.Atoi(c.Params("closingId"))
+
+	if err := cc.Service.DeleteClosing(uint(closingID)); err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"message": "Fechamento deletado com sucesso!"})
 }

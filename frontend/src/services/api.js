@@ -93,6 +93,9 @@ export const getPilotHistory = (pilotId) =>
 export const payClosing = (closingId) =>
   api.put(`closing/history/${closingId}/pay`);
 
+export const deleteClosing = (closingId) =>
+  api.delete(`closing/history/${closingId}`);
+
 // ─── Race Weekends ─────────────────────────────────
 export const getPilotRaceEntries = (pilotId) => api.get(`races/pilot/${pilotId}/entries`);
 export const getRaceWeekends = () => api.get('races');
@@ -101,11 +104,22 @@ export const createRaceWeekend = (data) => api.post('races', data);
 export const updateRaceWeekend = (id, data) => api.put(`races/${id}`, data);
 export const deleteRaceWeekend = (id) => api.delete(`races/${id}`);
 
+export const getGuestPilots = () => api.get('races/guest-pilots');
 export const addRaceEntry = (raceId, data) => api.post(`races/${raceId}/entries`, data);
 export const updateRaceEntry = (entryId, data) => api.put(`races/entries/${entryId}`, data);
 export const removeRaceEntry = (entryId) => api.delete(`races/entries/${entryId}`);
 export const payRaceEntry = (entryId) => api.put(`races/entries/${entryId}/pay`);
 export const addRaceEntryExpense = (entryId, data) => api.post(`races/entries/${entryId}/expenses`, data);
 export const deleteRaceEntryExpense = (expenseId) => api.delete(`races/entries/expenses/${expenseId}`);
+
+export const addRaceEntryReimbursement = (entryId, data) => api.post(`races/entries/${entryId}/reimbursements`, data);
+export const deleteRaceEntryReimbursement = (reimbursementId) => api.delete(`races/entries/reimbursements/${reimbursementId}`);
+
+// ─── Race Agenda (Caixinha) ────────────────────────────────────────────────────
+// Controle pessoal de saldo + gastos por fim de semana. Sem vínculo com pilotos.
+export const getRaceAgenda       = (raceId)       => api.get(`races/${raceId}/agenda`);
+export const setRaceAgendaSaldo  = (raceId, data) => api.put(`races/${raceId}/agenda/saldo`, data);
+export const addRaceAgendaExpense    = (raceId, data)     => api.post(`races/${raceId}/agenda/expenses`, data);
+export const deleteRaceAgendaExpense = (expenseId)        => api.delete(`races/agenda/expenses/${expenseId}`);
 
 export default api;

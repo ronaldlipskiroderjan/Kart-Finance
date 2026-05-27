@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { getPilots, getRaceWeekends } from '../services/api';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
+import PageHeader from '../components/layout/PageHeader';
 import { formatBRL } from '../utils/formatters';
 import { motion } from 'framer-motion';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from 'recharts';
-import { TrendingUp, Users, AlertCircle, DollarSign, Award, RefreshCw, Flag, Trophy } from 'lucide-react';
+import { TrendingUp, Users, AlertCircle, DollarSign, Award, RefreshCw, Flag, Trophy, BarChart2 } from 'lucide-react';
 
 const PIE_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
@@ -168,16 +169,11 @@ export default function Analytics() {
     <div className="flex min-h-screen">
       <Sidebar />
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur border-b border-zinc-800 px-4 lg:px-8 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-zinc-100">Analytics</h1>
-            <p className="text-xs text-zinc-500 mt-0.5">Visão financeira completa</p>
-          </div>
+        <PageHeader icon={BarChart2} title="Analytics" subtitle="Visão financeira completa">
           <button onClick={load} disabled={loading} className="btn-secondary px-3 py-2" aria-label="Recarregar">
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
-        </header>
+        </PageHeader>
 
         <div className="flex-1 px-4 md:px-6 lg:px-8 py-6 pb-28 lg:pb-8 space-y-6">
           {/* KPI Cards */}

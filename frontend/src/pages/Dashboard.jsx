@@ -7,8 +7,9 @@ import PilotModal from '../components/PilotModal';
 import NewPilotModal from '../components/NewPilotModal';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
+import PageHeader from '../components/layout/PageHeader';
 import CommandPalette from '../components/ui/CommandPalette';
-import { Plus, Search, RefreshCw, LogOut, Flag, Users, AlertCircle, DollarSign, TrendingUp, Command } from 'lucide-react';
+import { Plus, Search, RefreshCw, LogOut, Flag, Users, AlertCircle, DollarSign, TrendingUp, Command, LayoutDashboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatBRL } from '../utils/formatters';
 
@@ -140,53 +141,29 @@ export default function Dashboard() {
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-30 bg-zinc-950/90 backdrop-blur border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
-          <span className="text-lg font-black">
-            <span className="text-emerald-400">RA</span>
-            <span className="text-zinc-100"> Kart Racing</span>
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowCmdPalette(true)}
-              className="text-zinc-500 hover:text-zinc-200 transition-colors p-1.5"
-              aria-label="Buscar"
-            >
-              <Search size={19} />
-            </button>
-            <button onClick={handleLogout} className="text-zinc-500 hover:text-zinc-200 transition-colors" aria-label="Sair">
-              <LogOut size={19} />
-            </button>
-          </div>
-        </header>
-
-        {/* Desktop page title */}
-        <div className="hidden lg:flex items-center justify-between px-8 pt-8 pb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1>
-            <p className="text-sm text-zinc-500 mt-0.5">
-              {pilots.length} piloto{pilots.length !== 1 ? 's' : ''} cadastrado{pilots.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowCmdPalette(true)}
-              className="btn-secondary flex items-center gap-2 text-sm"
-              title="Ctrl+K"
-            >
-              <Command size={15} />
-              <span>Buscar</span>
-              <kbd className="ml-1 px-1.5 py-0.5 rounded border border-zinc-700 text-[10px] text-zinc-500 font-mono">⌘K</kbd>
-            </button>
-            <button
-              onClick={() => setShowNewPilot(true)}
-              className="btn-primary flex items-center gap-2"
-            >
-              <Plus size={18} />
-              Novo Piloto
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          icon={LayoutDashboard}
+          title="Dashboard"
+          subtitle={pilots.length > 0 ? `${pilots.length} piloto${pilots.length !== 1 ? 's' : ''} cadastrado${pilots.length !== 1 ? 's' : ''}` : 'Painel de pilotos'}
+        >
+          {/* Mobile: buscar + sair */}
+          <button onClick={() => setShowCmdPalette(true)} className="lg:hidden text-zinc-500 hover:text-zinc-200 transition-colors p-1.5 rounded-lg hover:bg-zinc-800" aria-label="Buscar">
+            <Search size={18} />
+          </button>
+          <button onClick={handleLogout} className="lg:hidden text-zinc-500 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-900/20" aria-label="Sair">
+            <LogOut size={18} />
+          </button>
+          {/* Desktop: buscar label + novo piloto */}
+          <button onClick={() => setShowCmdPalette(true)} className="hidden lg:flex btn-secondary items-center gap-2 text-sm" title="Ctrl+K">
+            <Command size={15} />
+            <span>Buscar</span>
+            <kbd className="ml-1 px-1.5 py-0.5 rounded border border-zinc-700 text-[10px] text-zinc-500 font-mono">⌘K</kbd>
+          </button>
+          <button onClick={() => setShowNewPilot(true)} className="hidden lg:flex btn-primary items-center gap-2">
+            <Plus size={18} />
+            Novo Piloto
+          </button>
+        </PageHeader>
 
         {/* Stats bar */}
         {!loading && pilots.length > 0 && (
