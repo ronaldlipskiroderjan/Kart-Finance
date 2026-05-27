@@ -16,7 +16,7 @@ export default function BottomNav() {
       <nav
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-zinc-900/95 backdrop-blur
                    border-t border-zinc-800 flex items-center justify-around px-2 overflow-visible"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)', height: '60px' }}
+        style={{ height: 'calc(60px + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {LINKS.map(({ to, end, icon: Icon, label }) => (
           <NavLink key={to} to={to} end={end} className="flex-1 flex justify-center items-center">

@@ -433,6 +433,41 @@ function RaceAgendaModal({ isOpen, onClose, race }) {
             </div>
           </div>
 
+          {/* ── Adicionar gasto ── */}
+          <div>
+            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+              Adicionar gasto
+            </p>
+            <div className="flex gap-2">
+              <input
+                className="input-field flex-1 text-xs py-1.5"
+                placeholder="Descrição"
+                value={expDesc}
+                onChange={e => setExpDesc(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddExpense()}
+              />
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                className="input-field w-24 text-xs py-1.5"
+                placeholder="R$"
+                value={expAmount}
+                onChange={e => setExpAmount(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddExpense()}
+              />
+              <button
+                onClick={handleAddExpense}
+                disabled={addingExp || !expDesc.trim() || !expAmount}
+                className="flex items-center gap-1 bg-red-600/20 hover:bg-red-600/30 text-red-400
+                           text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40 whitespace-nowrap"
+              >
+                <Plus size={12} />
+                {addingExp ? '…' : 'Add'}
+              </button>
+            </div>
+          </div>
+
           {/* ── Lista de gastos ── */}
           <div>
             <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -473,41 +508,6 @@ function RaceAgendaModal({ isOpen, onClose, race }) {
                 </div>
               </div>
             )}
-
-            {/* Adicionar gasto */}
-            <div className="flex flex-col gap-2 pt-1 border-t border-zinc-700/40">
-              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mt-1">
-                Adicionar gasto
-              </p>
-              <div className="flex gap-2">
-                <input
-                  className="input-field flex-1 text-xs py-1.5"
-                  placeholder="Descrição"
-                  value={expDesc}
-                  onChange={e => setExpDesc(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddExpense()}
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  className="input-field w-24 text-xs py-1.5"
-                  placeholder="R$"
-                  value={expAmount}
-                  onChange={e => setExpAmount(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddExpense()}
-                />
-                <button
-                  onClick={handleAddExpense}
-                  disabled={addingExp || !expDesc.trim() || !expAmount}
-                  className="flex items-center gap-1 bg-red-600/20 hover:bg-red-600/30 text-red-400
-                             text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40 whitespace-nowrap"
-                >
-                  <Plus size={12} />
-                  {addingExp ? '…' : 'Add'}
-                </button>
-              </div>
-            </div>
 
             {/* Espaço no fim para não colar no limite do modal */}
             <div className="pb-4" />

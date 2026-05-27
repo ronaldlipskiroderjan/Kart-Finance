@@ -62,7 +62,7 @@
    Garante que o conteúdo não fique atrás da barra de navegação,
    incluindo o espaço do home indicator do iPhone. */
 .pb-safe-nav {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  padding-bottom: calc(60px + env(safe-area-inset-bottom) + 16px);
 }
 
 /* Smooth page-level transitions */
