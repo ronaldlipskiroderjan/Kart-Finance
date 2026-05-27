@@ -18,10 +18,7 @@ export default function PageHeader({
   children,
 }) {
   return (
-    <header
-      className="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur-sm border-b border-zinc-800 shrink-0"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
-    >
+    <header className="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur-sm border-b border-zinc-800 shrink-0">
 
       <div className="flex items-center gap-2 px-4 lg:px-8 py-2.5">
 
