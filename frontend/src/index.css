@@ -59,14 +59,14 @@
 }
 
 /* Safe-area bottom padding para páginas com bottom nav mobile.
-   Nav fica a 12px fixos da borda inferior, tem ~48px de altura e deixa 16px de respiro. */
+   Nav fica a 24px fixos da borda inferior, tem ~48px de altura e deixa 16px de respiro. */
 .pb-safe-nav {
-  padding-bottom: 76px;
+  padding-bottom: 88px;
 }
 
 /* FAB (botão flutuante) — posicionado acima do bottom nav flutuante. */
 .fab-safe-bottom {
-  bottom: 68px;
+  bottom: 80px;
 }
 @media (min-width: 1024px) {
   .fab-safe-bottom {
