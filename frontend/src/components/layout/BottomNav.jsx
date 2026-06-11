@@ -39,7 +39,7 @@ export default function BottomNav() {
     <LayoutGroup>
       <nav
         className="lg:hidden fixed left-3 right-3 z-40"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 6px)' }}
+        style={{ bottom: '12px' }}
       >
         <div className="flex items-center justify-around px-1 py-0.5" style={glassShell}>
           {LINKS.map(({ to, end, icon: Icon, label }) => (
