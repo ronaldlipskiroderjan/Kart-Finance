@@ -7,44 +7,65 @@ const LINKS = [
   { to: '/analytics', icon: BarChart2, label: 'Analytics' },
   { to: '/races', icon: Flag, label: 'Corridas' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendário' },
-  { to: '/settings', icon: SettingsIcon, label: 'Config.' },
+  { to: '/settings', icon: SettingsIcon, label: 'Configurações' },
 ];
+
+const glassShell = {
+  borderRadius: '24px',
+  background: 'linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
+  backdropFilter: 'blur(32px) saturate(180%) brightness(1.06)',
+  WebkitBackdropFilter: 'blur(32px) saturate(180%) brightness(1.06)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  boxShadow: [
+    '0 8px 24px rgba(0,0,0,0.4)',
+    '0 2px 6px rgba(0,0,0,0.25)',
+    'inset 0 1px 0 rgba(255,255,255,0.14)',
+    'inset 0 -1px 0 rgba(0,0,0,0.1)',
+  ].join(', '),
+};
+
+const activePill = {
+  borderRadius: '13px',
+  background: 'linear-gradient(145deg, rgba(52,211,153,0.16) 0%, rgba(52,211,153,0.06) 100%)',
+  border: '1px solid rgba(52,211,153,0.18)',
+  boxShadow: [
+    '0 2px 10px rgba(52,211,153,0.12)',
+    'inset 0 1px 0 rgba(255,255,255,0.1)',
+  ].join(', '),
+};
 
 export default function BottomNav() {
   return (
     <LayoutGroup>
       <nav
-        className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-zinc-900/95 backdrop-blur
-                   border-t border-zinc-800 flex items-center justify-around px-2 overflow-visible"
-        style={{ height: 'calc(56px + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="lg:hidden fixed left-3 right-3 z-40"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
       >
-        {LINKS.map(({ to, end, icon: Icon, label }) => (
-          <NavLink key={to} to={to} end={end} className="flex-1 flex justify-center items-center">
-            {({ isActive }) =>
-              isActive ? (
-                <motion.div
-                  layoutId="nav-bubble"
-                  className="flex flex-col items-center -translate-y-6"
-                  transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-                >
-                  <div className="w-12 h-12 rounded-full bg-emerald-500 shadow-xl shadow-emerald-500/50
-                                  flex items-center justify-center">
-                    <Icon size={22} className="text-white" strokeWidth={2.2} />
-                  </div>
-                  <span className="text-[9px] font-semibold text-emerald-400 mt-1 leading-none">
-                    {label}
-                  </span>
-                </motion.div>
-              ) : (
-                <div className="flex flex-col items-center gap-0.5 py-2 px-3
-                                text-zinc-500 hover:text-zinc-300 transition-colors min-w-0">
-                  <Icon size={20} />
-                  <span className="text-[9px] font-medium truncate">{label}</span>
+        <div className="flex items-center justify-around px-1 py-0.5" style={glassShell}>
+          {LINKS.map(({ to, end, icon: Icon, label }) => (
+            <NavLink key={to} to={to} end={end} className="flex-1 flex justify-center" title={label}>
+              {({ isActive }) => (
+                <div className="relative flex items-center justify-center p-3">
+                  {isActive && (
+                    <motion.div
+                      layoutId="nav-glass-pill"
+                      className="absolute w-10 h-10"
+                      style={activePill}
+                      transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+                    />
+                  )}
+                  <Icon
+                    size={22}
+                    className={`relative z-10 transition-colors duration-200 ${
+                      isActive ? 'text-emerald-400' : 'text-zinc-500'
+                    }`}
+                    strokeWidth={isActive ? 2.2 : 1.8}
+                  />
                 </div>
-              )
-            }
-          </NavLink>
-        ))}
+              )}
+            </NavLink>
+          ))}
+        </div>
       </nav>
     </LayoutGroup>
   );

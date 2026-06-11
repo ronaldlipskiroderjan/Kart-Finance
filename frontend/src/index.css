@@ -59,20 +59,18 @@
 }
 
 /* Safe-area bottom padding para páginas com bottom nav mobile.
-   Garante que o conteúdo não fique atrás da barra de navegação,
-   incluindo o espaço do home indicator do iPhone. */
+   Nav flutua a 24px acima do safe-area, tem ~48px de altura e deixa 16px de respiro. */
 .pb-safe-nav {
-  padding-bottom: calc(56px + env(safe-area-inset-bottom) + 16px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 88px);
 }
 
-/* FAB (botão flutuante) — posicionado acima do bottom nav em qualquer device,
-   incluindo iPhone com home indicator (safe-area-inset-bottom). */
+/* FAB (botão flutuante) — posicionado acima do bottom nav flutuante. */
 .fab-safe-bottom {
-  bottom: calc(env(safe-area-inset-bottom) + 56px + 20px);
+  bottom: calc(env(safe-area-inset-bottom) + 80px);
 }
 @media (min-width: 1024px) {
   .fab-safe-bottom {
-    bottom: 2rem; /* lg: equivale a bottom-8 */
+    bottom: 2rem;
   }
 }
 
