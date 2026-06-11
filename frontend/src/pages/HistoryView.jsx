@@ -258,102 +258,176 @@ export default function HistoryView() {
                       const isPending = entry.status === 'PENDENTE' || entry.status === 'ATRASADO';
                       const isPayingThis = payingRaceId === entry.id;
                       const extras = entry.extras ?? [];
+                      const extrasTotal = extras.reduce((s, x) => s + (x.amount ?? 0), 0);
+                      const reimbTotal = (entry.reimbursements ?? []).reduce((s, r) => s + (r.amount ?? 0), 0);
                       const total = entryTotal(entry);
                       const isOpen = expandedRaceId === entry.id;
 
                       return (
-                        <div key={entry.id} className="glass-card overflow-hidden">
-                          {/* Linha principal — clique expande extras */}
+                        <div key={entry.id} className="glass-card p-5 transition-all duration-200">
+                          {/* Card header: nome + status (esquerda) | ações (direita) */}
+                          <div className="flex items-center justify-between gap-2 mb-4">
+                            <div
+                              className="flex items-center gap-2 min-w-0 cursor-pointer flex-1"
+                              onClick={() => setExpandedRaceId(isOpen ? null : entry.id)}
+                            >
+                              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                                <Flag size={13} className="text-emerald-400" />
+                              </div>
+                              <span className="text-sm font-semibold text-zinc-200 truncate">
+                                {entry.raceWeekend?.name ?? 'Corrida'}
+                              </span>
+                              <StatusBadge status={entry.status ?? 'PENDENTE'} />
+                            </div>
+
+                            {/* Ação: Marcar como Pago */}
+                            <div className="flex items-center shrink-0">
+                              {isPending && (
+                                <button
+                                  onClick={e => { e.stopPropagation(); handlePayRaceEntry(entry); }}
+                                  disabled={isPayingThis}
+                                  className="btn-pay flex items-center gap-1 disabled:opacity-60"
+                                >
+                                  <CheckSquare size={12} />
+                                  {isPayingThis ? 'Salvando…' : 'Marcar como Pago'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
                           <div
-                            className="p-4 cursor-pointer select-none hover:bg-zinc-800/30 transition-colors"
+                            className="cursor-pointer select-none"
                             onClick={() => setExpandedRaceId(isOpen ? null : entry.id)}
                           >
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
-                                  <Flag size={15} className="text-emerald-400" />
+                            {/* Grid de valores */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                              <div className="bg-zinc-800/60 rounded-xl p-3">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <Flag size={11} className="text-zinc-500" />
+                                  <p className="text-[11px] text-zinc-500">Corrida</p>
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-zinc-200 truncate">
-                                    {entry.raceWeekend?.name ?? 'Corrida'}
-                                  </p>
-                                  <p className="text-xs text-zinc-500 mt-0.5">
-                                    {entry.raceWeekend?.date
-                                      ? new Date(entry.raceWeekend.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
-                                      : formatDate(entry.createdAt)}
-                                  </p>
-                                  {extras.length > 0 && (
-                                    <p className="text-[10px] text-zinc-500 mt-0.5">
-                                      Base {formatBRL(entry.amount)} + {extras.length} extra{extras.length > 1 ? 's' : ''}
-                                    </p>
-                                  )}
-                                </div>
+                                <p className="text-sm font-semibold text-zinc-300">{formatBRL(entry.amount)}</p>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-base font-bold text-emerald-400">{formatBRL(total)}</span>
-                                <StatusBadge status={entry.status ?? 'PENDENTE'} />
-                                {isPending && (
-                                  <button
-                                    onClick={e => { e.stopPropagation(); handlePayRaceEntry(entry); }}
-                                    disabled={isPayingThis}
-                                    className="btn-pay flex items-center gap-1 disabled:opacity-60"
-                                  >
-                                    <CheckSquare size={12} />
-                                    {isPayingThis ? 'Salvando…' : 'Marcar como Pago'}
-                                  </button>
-                                )}
+                              <div className="bg-zinc-800/60 rounded-xl p-3">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <TrendingUp size={11} className="text-red-500" />
+                                  <p className="text-[11px] text-zinc-500">Gastos Extras</p>
+                                </div>
+                                <p className="text-sm font-semibold text-red-400">{formatBRL(extrasTotal)}</p>
+                              </div>
+                              <div className="bg-zinc-800/60 rounded-xl p-3">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <TrendingDown size={11} className="text-emerald-500" />
+                                  <p className="text-[11px] text-zinc-500">Reembolsos</p>
+                                </div>
+                                <p className="text-sm font-semibold text-emerald-400">{formatBRL(reimbTotal)}</p>
+                              </div>
+                              <div className="bg-zinc-800/60 rounded-xl p-3 border border-emerald-900/30">
+                                <p className="text-[11px] text-zinc-500 mb-1">Total Final</p>
+                                <p className="text-sm font-bold text-emerald-400">{formatBRL(total)}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 mt-3 flex-wrap">
+                              {entry.raceWeekend?.date && (
+                                <p className="text-xs text-zinc-600">
+                                  {new Date(entry.raceWeekend.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })}
+                                </p>
+                              )}
+                              {entry.status === 'PAGO' && entry.paymentDate && (
+                                <p className="text-xs text-emerald-500/70 flex items-center gap-1">
+                                  <CheckCircle size={10} />
+                                  Pago em {formatDate(entry.paymentDate)}
+                                </p>
+                              )}
+                              {entry.status === 'ATRASADO' && entry.dueDate && (
+                                <p className="text-xs text-red-400/70 flex items-center gap-1">
+                                  <AlertCircle size={10} />
+                                  Venceu em {formatDate(entry.dueDate)}
+                                </p>
+                              )}
+                              {entry.status === 'PENDENTE' && entry.dueDate && (
+                                <p className="text-xs text-zinc-600">
+                                  Vence em {formatDate(entry.dueDate)}
+                                </p>
+                              )}
+                              <span className="ml-auto">
                                 {isOpen
                                   ? <ChevronUp size={15} className="text-amber-400" />
                                   : <ChevronDown size={15} className="text-zinc-500" />}
-                              </div>
+                              </span>
                             </div>
-                            {entry.status === 'PAGO' && entry.paymentDate && (
-                              <p className="text-xs text-zinc-600 mt-2">
-                                Pago em {formatDate(entry.paymentDate)}
-                              </p>
-                            )}
-                            {entry.status === 'ATRASADO' && entry.dueDate && (
-                              <p className="text-xs text-red-400/70 mt-2 flex items-center gap-1">
-                                <AlertCircle size={10} />
-                                Venceu em {formatDate(entry.dueDate)}
-                              </p>
-                            )}
-                            {entry.status === 'PENDENTE' && entry.dueDate && (
-                              <p className="text-xs text-zinc-600 mt-2">
-                                Vence em {formatDate(entry.dueDate)}
-                              </p>
-                            )}
                           </div>
 
-                          {/* Painel expandido: extras + reembolsos */}
+                          {/* Extrato da corrida */}
                           <AnimatePresence>
-                            {isOpen && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.18 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="border-t border-zinc-700/50 px-4 py-3 space-y-2 bg-zinc-900/30">
-                                  <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
-                                    <Receipt size={10} /> Gastos Extras
-                                  </p>
-                                  {extras.length === 0 ? (
-                                    <p className="text-xs text-zinc-600">Nenhum gasto extra nesta corrida.</p>
-                                  ) : (
-                                    <div className="space-y-1.5">
-                                      {extras.map(x => (
-                                        <div key={x.id} className="flex items-center justify-between bg-zinc-800/60 rounded-lg px-2.5 py-1.5">
-                                          <span className="text-xs text-zinc-300">{x.description}</span>
-                                          <span className="text-xs font-semibold text-red-400">+{formatBRL(x.amount)}</span>
-                                        </div>
-                                      ))}
+                            {isOpen && (() => {
+                              const reimbursements = entry.reimbursements ?? [];
+                              const raceItems = [
+                                ...extras.map(x => ({ type: 'expense', description: x.description, amount: x.amount, createdAt: x.createdAt })),
+                                ...reimbursements.map(r => ({ type: 'reimbursement', description: r.description, amount: r.amount, createdAt: r.createdAt })),
+                              ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+                              if (entry.status === 'PAGO' && entry.paymentDate) {
+                                raceItems.push({ type: 'payment', description: 'Pagamento Recebido', amount: total, createdAt: entry.paymentDate });
+                              }
+
+                              return (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.18 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="mt-4 pt-4 border-t border-zinc-800 space-y-3">
+                                    <h4 className="text-sm font-semibold text-zinc-100">Extrato da Corrida</h4>
+
+                                    {/* Valor base */}
+                                    <div className="flex justify-between items-center bg-zinc-800/40 p-3 rounded-lg border border-zinc-700/50">
+                                      <div className="flex items-center gap-2">
+                                        <Flag size={14} className="text-zinc-400" />
+                                        <span className="text-sm text-zinc-300">Valor Base da Corrida</span>
+                                      </div>
+                                      <span className="text-sm font-medium text-zinc-300">{formatBRL(entry.amount)}</span>
                                     </div>
-                                  )}
-                                </div>
-                              </motion.div>
-                            )}
+
+                                    {raceItems.length === 0 ? (
+                                      <p className="text-xs text-zinc-500 text-center py-2">Nenhum gasto extra ou reembolso nesta corrida.</p>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        {raceItems.map((item, idx) => (
+                                          <div key={idx} className={`flex justify-between items-center bg-zinc-800/20 p-2.5 rounded-lg border ${item.type === 'payment' ? 'border-emerald-600/30 bg-emerald-900/10' : 'border-zinc-800/50'}`}>
+                                            <div className="flex gap-2.5 items-start">
+                                              <div className="mt-0.5">
+                                                {item.type === 'expense' ? (
+                                                  <TrendingUp size={14} className="text-red-400" />
+                                                ) : item.type === 'payment' ? (
+                                                  <CheckCircle size={14} className="text-emerald-400" />
+                                                ) : (
+                                                  <TrendingDown size={14} className="text-emerald-400" />
+                                                )}
+                                              </div>
+                                              <div>
+                                                <p className={`text-sm font-medium ${item.type === 'payment' ? 'text-emerald-400' : 'text-zinc-200'}`}>
+                                                  {item.description}
+                                                </p>
+                                                <p className={`text-xs ${item.type === 'payment' ? 'text-emerald-500/70' : 'text-zinc-500'}`}>
+                                                  {formatDate(item.createdAt)}
+                                                </p>
+                                              </div>
+                                            </div>
+                                            <span className={`text-sm font-medium ${item.type === 'expense' ? 'text-red-400' : 'text-emerald-400'}`}>
+                                              {item.type === 'expense' ? '+' : '-'}{formatBRL(item.amount)}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              );
+                            })()}
                           </AnimatePresence>
                         </div>
                       );
@@ -389,68 +463,65 @@ export default function HistoryView() {
 
                       return (
                         <div key={record.id} className="glass-card p-5 transition-all duration-200">
-                          <div className="cursor-pointer" onClick={() => toggleMonth(record)}>
-                            {/* Month + status */}
-                            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                              <div className="flex items-center gap-2">
-                                <Calendar size={15} className="text-emerald-400" />
-                                <span className="text-sm font-semibold text-zinc-200 capitalize">
-                                  {record.monthReference}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <StatusBadge status={record.status ?? 'PENDENTE'} />
-                                {isPending && (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleMarkAsPaid(record); }}
-                                    disabled={isPayingThis}
-                                    className="btn-pay flex items-center gap-1 disabled:opacity-60"
-                                    title="Marcar como Pago"
-                                  >
-                                    <CheckSquare size={12} />
-                                    {isPayingThis ? 'Salvando…' : 'Marcar como Pago'}
-                                  </button>
-                                )}
-                                {/* Botão deletar / confirmação */}
-                                {!isConfirmingDelete ? (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(record.id); }}
-                                    disabled={isDeletingThis}
-                                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium
-                                               bg-red-500/10 text-red-400 border border-red-700/30
-                                               hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                                    title="Deletar fechamento"
-                                  >
-                                    <Trash2 size={12} />
-                                    Deletar
-                                  </button>
-                                ) : (
-                                  <div
-                                    className="flex items-center gap-1"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <span className="text-xs text-red-400 font-medium">Confirmar?</span>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteClosing(record); }}
-                                      disabled={isDeletingThis}
-                                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold
-                                                 bg-red-600 text-white hover:bg-red-500 transition-colors disabled:opacity-50"
-                                    >
-                                      <Trash2 size={11} />
-                                      {isDeletingThis ? 'Deletando…' : 'Sim'}
-                                    </button>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
-                                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium
-                                                 bg-zinc-700 text-zinc-300 hover:bg-zinc-600 transition-colors"
-                                    >
-                                      <X size={11} />
-                                      Não
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                          {/* Card header: mês + status (esquerda) | ações (direita) */}
+                          <div className="flex items-center justify-between gap-2 mb-4">
+                            <div
+                              className="flex items-center gap-2 min-w-0 cursor-pointer flex-1"
+                              onClick={() => toggleMonth(record)}
+                            >
+                              <Calendar size={15} className="text-emerald-400 shrink-0" />
+                              <span className="text-sm font-semibold text-zinc-200 capitalize">
+                                {record.monthReference}
+                              </span>
+                              <StatusBadge status={record.status ?? 'PENDENTE'} />
                             </div>
+
+                            {/* Ações: Marcar como Pago + lixeira */}
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              {isPending && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleMarkAsPaid(record); }}
+                                  disabled={isPayingThis}
+                                  className="btn-pay flex items-center gap-1 disabled:opacity-60 mr-1"
+                                  title="Marcar como Pago"
+                                >
+                                  <CheckSquare size={12} />
+                                  {isPayingThis ? 'Salvando…' : 'Marcar como Pago'}
+                                </button>
+                              )}
+                              {!isConfirmingDelete ? (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(record.id); }}
+                                  disabled={isDeletingThis}
+                                  className="text-zinc-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg p-1.5 transition-colors disabled:opacity-50"
+                                  title="Deletar fechamento"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              ) : (
+                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <span className="text-xs text-red-400 font-medium">Confirmar?</span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteClosing(record); }}
+                                    disabled={isDeletingThis}
+                                    className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+                                    title="Confirmar exclusão"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
+                                    className="p-1.5 rounded-lg bg-zinc-700 text-zinc-300 hover:bg-zinc-600 transition-colors"
+                                    title="Cancelar"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="cursor-pointer" onClick={() => toggleMonth(record)}>
 
                             {/* Values grid */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
