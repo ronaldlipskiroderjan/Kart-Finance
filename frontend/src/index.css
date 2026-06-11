@@ -59,14 +59,14 @@
 }
 
 /* Safe-area bottom padding para páginas com bottom nav mobile.
-   Nav flutua a 24px acima do safe-area, tem ~48px de altura e deixa 16px de respiro. */
+   Nav flutua a 6px acima do safe-area, tem ~48px de altura e deixa 16px de respiro. */
 .pb-safe-nav {
-  padding-bottom: calc(env(safe-area-inset-bottom) + 88px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 70px);
 }
 
 /* FAB (botão flutuante) — posicionado acima do bottom nav flutuante. */
 .fab-safe-bottom {
-  bottom: calc(env(safe-area-inset-bottom) + 80px);
+  bottom: calc(env(safe-area-inset-bottom) + 62px);
 }
 @media (min-width: 1024px) {
   .fab-safe-bottom {
