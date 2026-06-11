@@ -671,12 +671,11 @@ function RaceWeekendModal({ isOpen, onClose, race, onRefresh, onEdit, onDelete }
       {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
       <Modal isOpen={isOpen} onClose={onClose} title={race.name} size="lg">
 
-        {/* Subtítulo: data + pilotos + descrição + botões de ação */}
-        <div className="flex flex-wrap items-center justify-between gap-y-2 -mt-1 mb-4">
+        {/* Subtítulo: data + pilotos + botões de ação */}
+        <div className="flex flex-wrap items-center justify-between gap-y-2 -mt-1 mb-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
             <span className="flex items-center gap-1"><Calendar size={11} />{formatDateBR(race.date)}</span>
             <span className="flex items-center gap-1"><Users size={11} />{entries.length} piloto{entries.length !== 1 ? 's' : ''}</span>
-            {race.description && <span className="italic text-zinc-600">{race.description}</span>}
           </div>
           <div className="flex items-center gap-0.5 shrink-0">
             <button
@@ -708,6 +707,13 @@ function RaceWeekendModal({ isOpen, onClose, race, onRefresh, onEdit, onDelete }
             </button>
           </div>
         </div>
+
+        {/* Descrição do evento */}
+        {race.description && (
+          <p className="text-xs text-zinc-400 border-l-2 border-zinc-700 pl-2.5 mb-4 leading-relaxed">
+            {race.description}
+          </p>
+        )}
 
         {/* Resumo financeiro */}
         {entries.length > 0 && (

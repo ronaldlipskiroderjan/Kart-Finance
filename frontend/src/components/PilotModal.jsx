@@ -346,6 +346,11 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                 </div>
               )}
             </div>
+            {pilot.observations && (
+              <p className="text-xs text-zinc-500 mt-2 leading-relaxed border-l-2 border-zinc-700 pl-2.5 line-clamp-3">
+                {pilot.observations}
+              </p>
+            )}
           </div>
           {/* Botões de ação — shrink-0 impede que sejam comprimidos */}
           <div className="flex items-center gap-0.5 shrink-0">
