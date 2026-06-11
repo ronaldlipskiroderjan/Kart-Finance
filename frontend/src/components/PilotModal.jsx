@@ -124,16 +124,21 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
 
   // Is the currently viewed month already closed?
   const activeMonthRef = `${activeYear}/${String(activeMonth).padStart(2, '0')}`;
-  const isMonthClosed = (pilot?.closingHistories || []).some(
+  const activeMonthHistory = (pilot?.closingHistories || []).find(
     h => (h.monthReference || h.MonthReference) === activeMonthRef
   );
+  const activeMonthStatus = activeMonthHistory?.status || activeMonthHistory?.Status || null;
+  // Paid → fully locked; Pending/Overdue → allow adding expenses but hide "Fechar Mês"
+  const isMonthPaid = activeMonthStatus === 'PAGO';
+  const isMonthPending = activeMonthStatus === 'PENDENTE' || activeMonthStatus === 'ATRASADO';
+  const isMonthClosed = isMonthPaid;
 
-  // When navigating to a closed month, force Resumo tab
+  // Force Resumo tab only when viewing a fully paid month
   useEffect(() => {
-    if (isMonthClosed && activeTab !== 'summary') {
+    if (isMonthPaid && activeTab !== 'summary') {
       setActiveTab('summary');
     }
-  }, [isMonthClosed, activeTab]);
+  }, [isMonthPaid, activeTab]);
 
   // Month navigation
   const goToPrevMonth = () => {
@@ -423,8 +428,8 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
           );
         })()}
 
-        {/* Tabs — mês fechado: só Resumo */}
-        {!isMonthClosed && (
+        {/* Tabs — pago: só Resumo; pendente/atrasado: todas as abas */}
+        {!isMonthPaid && (
           <div className="flex bg-zinc-800/60 rounded-xl p-1 mb-5 gap-0.5">
             {TABS.map((tab) => {
               const Icon = tab.icon;
@@ -672,7 +677,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
 
         {/* ── CLOSE MONTH TAB ── */}
         {activeTab === 'close' && (() => {
-          const isAlreadyClosed = isMonthClosed;
+          const isAlreadyClosed = isMonthPaid || isMonthPending;
           return (
           <div className="space-y-5">
             {summary && (
@@ -694,16 +699,18 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
               </div>
             )}
 
-            <div className="bg-amber-900/20 border border-amber-700/40 rounded-xl p-4 flex gap-3">
-              <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-amber-300 mb-1">Atenção</p>
-                <p className="text-xs text-amber-400/80">
-                  Esta ação irá registrar o fechamento do mês de <strong>{monthLabel}</strong> para{' '}
-                  <strong>{pilot.name}</strong>. Uma vez fechado, os valores ficam salvos no histórico.
-                </p>
+            {!isAlreadyClosed && (
+              <div className="bg-amber-900/20 border border-amber-700/40 rounded-xl p-4 flex gap-3">
+                <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-300 mb-1">Atenção</p>
+                  <p className="text-xs text-amber-400/80">
+                    Esta ação irá registrar o fechamento do mês de <strong>{monthLabel}</strong> para{' '}
+                    <strong>{pilot.name}</strong>. Uma vez fechado, os valores ficam salvos no histórico.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             {closeMsg && <p className="text-sm text-zinc-400">{closeMsg}</p>}
 
