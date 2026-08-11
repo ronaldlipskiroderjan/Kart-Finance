@@ -1,0 +1,64 @@
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Settings as SettingsIcon, LogOut, BarChart2, CalendarDays, Flag } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+
+const NAV_LINKS = [
+  { to: '/', end: true, icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/analytics', icon: BarChart2, label: 'Analytics' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendário' },
+  { to: '/races', icon: Flag, label: 'Corridas' },
+  { to: '/settings', icon: SettingsIcon, label: 'Configurações' },
+];
+
+export default function Sidebar() {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
+
+  return (
+    <aside className="hidden lg:flex flex-col w-64 bg-zinc-900 border-r border-zinc-800 min-h-screen sticky top-0">
+      {/* Logo */}
+      <div className="px-6 py-6 border-b border-zinc-800">
+        <span className="text-xl font-black tracking-tight">
+          <span className="text-emerald-400">RA Kart</span>
+          <span className="text-zinc-100"> Racing</span>
+        </span>
+        <p className="text-xs text-zinc-500 mt-0.5">Painel Administrativo</p>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {NAV_LINKS.map(({ to, end, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-emerald-500/15 text-emerald-400'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+              }`
+            }
+          >
+            <Icon size={18} />
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Logout */}
+      <div className="px-3 py-4 border-t border-zinc-800">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium
+                     text-zinc-400 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+        >
+          <LogOut size={18} />
+          Sair
+        </button>
+      </div>
+    </aside>
+  );
+}

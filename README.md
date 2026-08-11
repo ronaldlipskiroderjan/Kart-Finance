@@ -79,6 +79,18 @@ O frontend pode ser publicado na Vercel e a API no Render ou serviço
 equivalente. Em produção, configure origens CORS exatas e cookies seguros; não
 use origem `*` junto com credenciais.
 
+Para o Vercel, importe este repositório e selecione `frontend` como **Root
+Directory**. O preset é Vite, o build é `npm run build` e a saída é `dist`.
+Cadastre `VITE_API_URL` com a URL HTTPS pública do backend, sem caminho
+`/api/v1`. Depois do primeiro deploy, configure essa URL do Vercel como
+`ALLOWED_ORIGINS` no backend e publique novamente a API.
+
+Para o Render, crie um **Blueprint** a partir deste repositório. O arquivo
+`render.yaml` configura o serviço Go, o endpoint de saúde e os comandos de
+build e inicialização. Informe no painel os valores secretos de `DATABASE_URL`
+e `ALLOWED_ORIGINS`; eles não ficam armazenados no repositório. O processo de
+inicialização aplica as migrações versionadas antes de liberar a API.
+
 O backend reconcilia fechamentos financeiros vencidos ao iniciar e repete a
 verificação a cada hora. Plataformas que suspendem o processo por inatividade
 não perdem permanentemente o dia de fechamento: o trabalho pendente é processado
