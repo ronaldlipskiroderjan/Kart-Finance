@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
-import { createAdmin } from '../services/api';
+import { createAdmin } from '../services/adminApi';
 
 export default function NewAdminModal({ isOpen, onClose, onSuccess }) {
   const [form, setForm] = useState({ name: '', email: '', password: '' });

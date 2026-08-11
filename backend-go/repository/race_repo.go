@@ -1,6 +1,11 @@
 package repository
 
-import "kartfinance-api/models"
+import (
+	"errors"
+	"kartfinance-api/models"
+
+	"gorm.io/gorm"
+)
 
 func (r *AppRepository) CreateRaceWeekend(race *models.RaceWeekend) error {
 	return r.DB.Create(race).Error
@@ -128,23 +133,23 @@ func (r *AppRepository) FindOrCreateGuestPilot(name string) (*models.GuestPilot,
 
 // ─── Race Agenda ──────────────────────────────────────────────────────────────
 
-// FindOrCreateAgenda retorna a agenda de um fim de semana, criando-a se não existir.
+// FindOrCreateAgenda keeps its legacy name but GET callers no longer create data.
 func (r *AppRepository) FindOrCreateAgenda(raceWeekendID uint) (*models.RaceAgenda, error) {
 	var agenda models.RaceAgenda
 	err := r.DB.Preload("Expenses").Where("race_weekend_id = ?", raceWeekendID).First(&agenda).Error
-	if err != nil {
-		// Não existe — cria zerada
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		agenda = models.RaceAgenda{RaceWeekendID: raceWeekendID, Saldo: 0}
-		if createErr := r.DB.Create(&agenda).Error; createErr != nil {
-			return nil, createErr
-		}
 		agenda.Expenses = []models.RaceAgendaExpense{}
+		return &agenda, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 	return &agenda, nil
 }
 
 // UpdateAgendaSaldo atualiza apenas o saldo da agenda.
-func (r *AppRepository) UpdateAgendaSaldo(raceWeekendID uint, saldo float64) (*models.RaceAgenda, error) {
+func (r *AppRepository) UpdateAgendaSaldo(raceWeekendID uint, saldo models.Money) (*models.RaceAgenda, error) {
 	agenda, err := r.FindOrCreateAgenda(raceWeekendID)
 	if err != nil {
 		return nil, err
@@ -158,10 +163,15 @@ func (r *AppRepository) UpdateAgendaSaldo(raceWeekendID uint, saldo float64) (*m
 }
 
 // CreateAgendaExpense adiciona um gasto à agenda de um fim de semana.
-func (r *AppRepository) CreateAgendaExpense(raceWeekendID uint, description string, amount float64) (*models.RaceAgenda, error) {
+func (r *AppRepository) CreateAgendaExpense(raceWeekendID uint, description string, amount models.Money) (*models.RaceAgenda, error) {
 	agenda, err := r.FindOrCreateAgenda(raceWeekendID)
 	if err != nil {
 		return nil, err
+	}
+	if agenda.ID == 0 {
+		if err := r.DB.Create(agenda).Error; err != nil {
+			return nil, err
+		}
 	}
 	expense := models.RaceAgendaExpense{
 		RaceAgendaID: agenda.ID,

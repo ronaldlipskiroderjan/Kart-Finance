@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getPilots, getPilotHistory } from '../services/api';
+import { getPilots } from '../services/pilotsApi';
 import { useAuth } from '../context/AuthContext';
 import PilotCard from '../components/PilotCard';
 import PilotModal from '../components/PilotModal';
@@ -10,7 +10,7 @@ import BottomNav from '../components/layout/BottomNav';
 import PageHeader from '../components/layout/PageHeader';
 import CommandPalette from '../components/ui/CommandPalette';
 import { Plus, Search, RefreshCw, LogOut, Flag, Users, AlertCircle, DollarSign, TrendingUp, Command, LayoutDashboard } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { formatBRL } from '../utils/formatters';
 
 function StatCard({ icon: Icon, label, value, color }) {
@@ -83,27 +83,10 @@ export default function Dashboard() {
       const res = await getPilots();
       const pilotsData = res.data;
 
-      const pilotsWithStatus = await Promise.all(
-        pilotsData.map(async (p) => {
-          try {
-            const hRes = await getPilotHistory(p.id);
-            const history = hRes.data || [];
-            const hasAtrasado = history.some(h => h.status === 'ATRASADO');
-            const hasPendente = history.some(h => h.status === 'PENDENTE');
-            let pilotStatus = 'EM DIA';
-            if (hasAtrasado) pilotStatus = 'ATRASADO';
-            else if (hasPendente) pilotStatus = 'PENDENTE';
-            return { ...p, status: pilotStatus };
-          } catch {
-            return { ...p, status: 'EM DIA' };
-          }
-        })
-      );
-
-      setPilots(pilotsWithStatus);
+      setPilots(pilotsData);
       setSelectedPilot(prev => {
         if (!prev) return prev;
-        return pilotsWithStatus.find(p => p.id === prev.id) || prev;
+        return pilotsData.find(p => p.id === prev.id) || prev;
       });
     } catch {
       setError('Não foi possível carregar os pilotos.');

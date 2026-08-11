@@ -10,8 +10,7 @@
  * previous month's expenses. The closed month's data remains accessible
  * in history or via the month navigation arrows.
  */
-export function getActiveBillingMonth(pilot) {
-  const now = new Date();
+export function getActiveBillingMonth(pilot, now = new Date()) {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
@@ -34,7 +33,7 @@ export function getActiveBillingMonth(pilot) {
     return { year: currentYear, month: currentMonth };
   }
 
-  const parts = refs[0].split(/[-\/]/).map(Number);
+  const parts = refs[0].split(/[-/]/).map(Number);
   if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
     return { year: currentYear, month: currentMonth };
   }
@@ -61,7 +60,31 @@ export function getActiveBillingMonth(pilot) {
   return { year: nextYear, month: nextMonth };
 }
 
-export function isSameMonth(year, month) {
-  const now = new Date();
+export function isSameMonth(year, month, now = new Date()) {
   return year === now.getFullYear() && month === now.getMonth() + 1;
+}
+
+export function getEntryPeriod(entry) {
+  const reference = entry?.referencePeriod;
+  const match = typeof reference === 'string' && reference.match(/^(\d{4})-(\d{2})/);
+  if (match) return { year: Number(match[1]), month: Number(match[2]) };
+
+  const createdAt = entry?.createdAt ?? entry?.CreatedAt;
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return { year: date.getFullYear(), month: date.getMonth() + 1 };
+}
+
+export function isEntryInPeriod(entry, year, month) {
+  const entryPeriod = getEntryPeriod(entry);
+  return entryPeriod?.year === year && entryPeriod?.month === month;
+}
+
+export function entryPeriodTimestamp(entry) {
+  const createdAt = new Date(entry?.createdAt ?? entry?.CreatedAt);
+  if (!Number.isNaN(createdAt.getTime())) return createdAt.getTime();
+
+  const period = getEntryPeriod(entry);
+  if (!period) return 0;
+  return Date.UTC(period.year, period.month - 1, 1);
 }

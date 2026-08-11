@@ -3,15 +3,15 @@ package models
 import "time"
 
 type Pilot struct {
-	ID               uint             `gorm:"primaryKey"`
-	Name             string           `gorm:"not null"`
-	Category         string           
-	BaseFee          float64          `gorm:"not null;default:0"`
-	Observations     string           `gorm:"type:text"`
-	ClosingDay       int              `gorm:"not null;default:10"`
-	CreatedAt        time.Time        `gorm:"autoCreateTime"`
-	
-	Expenses         []Expense        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	Reimbursements   []Reimbursement  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	ClosingHistories []ClosingHistory `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	Name         string    `gorm:"not null" json:"name"`
+	Category     string    `json:"category"`
+	BaseFee      Money     `gorm:"type:numeric(14,2);not null;default:0" json:"baseFee"`
+	Observations string    `gorm:"type:text" json:"observations"`
+	ClosingDay   int       `gorm:"not null;default:10" json:"closingDay"`
+	CreatedAt    time.Time `gorm:"autoCreateTime" json:"createdAt"`
+
+	Expenses         []Expense        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"expenses,omitempty"`
+	Reimbursements   []Reimbursement  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"reimbursements,omitempty"`
+	ClosingHistories []ClosingHistory `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"closingHistories,omitempty"`
 }

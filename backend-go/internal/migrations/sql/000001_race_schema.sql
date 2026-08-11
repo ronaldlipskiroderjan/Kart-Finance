@@ -1,0 +1,58 @@
+CREATE TABLE IF NOT EXISTS race_weekends (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    date TIMESTAMPTZ NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS guest_pilots (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS race_entries (
+    id BIGSERIAL PRIMARY KEY,
+    race_weekend_id BIGINT NOT NULL REFERENCES race_weekends(id) ON DELETE CASCADE,
+    pilot_id BIGINT REFERENCES pilots(id) ON DELETE CASCADE,
+    guest_pilot_id BIGINT REFERENCES guest_pilots(id) ON DELETE SET NULL,
+    amount NUMERIC(14,2) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
+    due_date TIMESTAMPTZ,
+    payment_date TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS race_entry_expenses (
+    id BIGSERIAL PRIMARY KEY,
+    race_entry_id BIGINT NOT NULL REFERENCES race_entries(id) ON DELETE CASCADE,
+    description VARCHAR(255) NOT NULL,
+    amount NUMERIC(14,2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS race_entry_reimbursements (
+    id BIGSERIAL PRIMARY KEY,
+    race_entry_id BIGINT NOT NULL REFERENCES race_entries(id) ON DELETE CASCADE,
+    description VARCHAR(255) NOT NULL,
+    amount NUMERIC(14,2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS race_agendas (
+    id BIGSERIAL PRIMARY KEY,
+    race_weekend_id BIGINT NOT NULL UNIQUE REFERENCES race_weekends(id) ON DELETE CASCADE,
+    saldo NUMERIC(14,2) NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS race_agenda_expenses (
+    id BIGSERIAL PRIMARY KEY,
+    race_agenda_id BIGINT NOT NULL REFERENCES race_agendas(id) ON DELETE CASCADE,
+    description VARCHAR(255) NOT NULL,
+    amount NUMERIC(14,2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+

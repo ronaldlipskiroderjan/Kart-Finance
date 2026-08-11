@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getPilotHistory, getPilotById, payClosing, deleteClosing, getMonthlySummary, getPilotRaceEntries, payRaceEntry } from '../services/api';
+import { getPilotById } from '../services/pilotsApi';
+import { getPilotHistory, payClosing, deleteClosing, getMonthlySummary } from '../services/billingApi';
+import { getPilotRaceEntries, payRaceEntry } from '../services/racesApi';
 import { formatBRL, formatDate } from '../utils/formatters';
+import { isEntryInPeriod, entryPeriodTimestamp } from '../utils/billing';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
 import PageHeader from '../components/layout/PageHeader';
 import {
   ArrowLeft, Calendar, CheckCircle, TrendingUp, TrendingDown,
   DollarSign, Clock, AlertCircle, CheckSquare, X, Flag,
-  ChevronDown, ChevronUp, Receipt, Trash2, History,
+  ChevronDown, ChevronUp, Trash2, History,
 } from 'lucide-react';
 
 function entryTotal(entry) {
@@ -134,17 +137,11 @@ export default function HistoryView() {
       const pilotExpenses = pilot?.expenses || [];
       const pilotReimbursements = pilot?.reimbursements || [];
 
-      const filteredExps = pilotExpenses.filter(e => {
-        const d = new Date(e.createdAt);
-        return d.getFullYear() === year && d.getMonth() + 1 === month;
-      });
-      const filteredRmbs = pilotReimbursements.filter(r => {
-        const d = new Date(r.createdAt);
-        return d.getFullYear() === year && d.getMonth() + 1 === month;
-      });
+      const filteredExps = pilotExpenses.filter(entry => isEntryInPeriod(entry, year, month));
+      const filteredRmbs = pilotReimbursements.filter(entry => isEntryInPeriod(entry, year, month));
 
-      const exps = filteredExps.map(e => ({ ...e, type: 'expense', date: new Date(e.createdAt).getTime() }));
-      const rmbs = filteredRmbs.map(r => ({ ...r, type: 'reimbursement', date: new Date(r.createdAt).getTime() }));
+      const exps = filteredExps.map(entry => ({ ...entry, type: 'expense', date: entryPeriodTimestamp(entry) }));
+      const rmbs = filteredRmbs.map(entry => ({ ...entry, type: 'reimbursement', date: entryPeriodTimestamp(entry) }));
       const combined = [...exps, ...rmbs].sort((a, b) => a.date - b.date);
 
       if (record.status === 'PAGO' && record.paymentDate) {

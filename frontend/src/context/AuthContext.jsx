@@ -1,26 +1,9 @@
-import { createContext, useContext, useState, useCallback } from 'react';
-import { loginUser, getConfig, updateConfig as apiUpdateConfig } from '../services/api';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createSession as loginUser, getCurrentUser, deleteCurrentSession } from '../services/authApi';
+import { getConfig, updateConfig as apiUpdateConfig } from '../services/settingsApi';
 
-// ── Storage keys ──────────────────────────────────
-const USER_KEY = 'kf_user';
+// PIX is a non-sensitive UI cache; authentication is held only by the server cookie.
 const PIX_KEY = 'kf_global_pix';
-
-function loadUser() {
-  try {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveUser(user) {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-}
-
-function clearUser() {
-  localStorage.removeItem(USER_KEY);
-}
 
 function loadGlobalPixKey() {
   return localStorage.getItem(PIX_KEY) || '';
@@ -34,9 +17,23 @@ function saveGlobalPixKey(key) {
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => loadUser());
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [globalPixKey, setGlobalPixKey] = useState(() => loadGlobalPixKey());
 
+
+  useEffect(() => {
+    let active = true;
+    getCurrentUser()
+      .then(({ data }) => {
+        if (active) setUser({ id: data.id, name: data.name, email: data.email, role: data.role });
+      })
+      .catch(() => {
+        if (active) setUser(null);
+      })
+      .finally(() => { if (active) setAuthLoading(false); });
+    return () => { active = false; };
+  }, []);
   const login = useCallback(async (email, password) => {
     try {
       const res = await loginUser({ email, password });
@@ -52,7 +49,6 @@ export function AuthProvider({ children }) {
         email: data.email,
         role: data.role,
       };
-      saveUser(userData);
       setUser(userData);
 
       // Carrega a chave PIX global do sistema
@@ -68,7 +64,7 @@ export function AuthProvider({ children }) {
       return userData;
     } catch (err) {
       const serverMsg = err.response?.data?.message;
-      throw new Error(serverMsg ?? err.message ?? 'Email ou senha incorretos');
+      throw new Error(serverMsg ?? err.message ?? 'Email ou senha incorretos', { cause: err });
     }
   }, []);
 
@@ -90,15 +86,18 @@ export function AuthProvider({ children }) {
     setGlobalPixKey(pixKey.trim());
   }, []);
 
-  const logout = useCallback(() => {
-    clearUser();
-    setUser(null);
+  const logout = useCallback(async () => {
+    try {
+      await deleteCurrentSession();
+    } finally {
+      setUser(null);
+    }
   }, []);
 
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, globalPixKey, refreshPixKey, savePixKey }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, authLoading, login, logout, globalPixKey, refreshPixKey, savePixKey }}>
       {children}
     </AuthContext.Provider>
   );

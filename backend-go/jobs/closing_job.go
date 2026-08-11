@@ -1,117 +1,152 @@
 package jobs
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"time"
 
+	closingdomain "kartfinance-api/domain/closing"
 	"kartfinance-api/models"
 	"kartfinance-api/repository"
 	"kartfinance-api/services"
 
 	"github.com/robfig/cron/v3"
+	"gorm.io/gorm"
 )
 
-// BrazilLocation retorna o fuso horário de Brasília (UTC-3).
-// Usado tanto pelo cron quanto pelo RunDailyJobs para garantir
-// que o fechamento ocorra à meia-noite no horário do Brasil.
+// BrazilLocation returns the business timezone used by financial schedules.
 func BrazilLocation() *time.Location {
 	loc, err := time.LoadLocation("America/Sao_Paulo")
 	if err != nil {
-		// Fallback seguro: UTC-3 fixo (sem horário de verão)
+		// Brazil currently has no daylight-saving transition. This fallback
+		// keeps the job usable in minimal images without timezone data.
 		loc = time.FixedZone("BRT", -3*60*60)
 	}
 	return loc
 }
 
-func InitCron(repo *repository.AppRepository, closingService *services.ClosingService) {
-	loc := BrazilLocation()
+// InitCron reconciles missed work at startup and then retries every hour. The
+// startup run is essential on platforms that suspend the API while it is idle.
+func InitCron(repo *repository.AppRepository) {
+	runAndLog := func(trigger string) {
+		log.Printf("[CRON] Iniciando reconciliação financeira (%s)...", trigger)
+		if err := RunDailyJobs(repo); err != nil {
+			log.Printf("[CRON] Reconciliação financeira falhou (%s): %v", trigger, err)
+		}
+	}
 
-	// Cron com fuso horário de Brasília — dispara à meia-noite BRT
-	c := cron.New(cron.WithLocation(loc))
+	runAndLog("startup")
 
-	_, err := c.AddFunc("0 0 * * *", func() {
-		log.Println("[CRON] Iniciando fechamento automático...")
-		RunDailyJobs(repo, closingService)
-	})
-
-	if err != nil {
+	c := cron.New(cron.WithLocation(BrazilLocation()))
+	if _, err := c.AddFunc("0 * * * *", func() { runAndLog("agendada") }); err != nil {
 		log.Fatalf("[CRON] Falha ao inicializar cron: %v", err)
 	}
-
 	c.Start()
-	log.Println("[CRON] Serviço de agendamento (Cron) iniciado com sucesso (fuso: America/Sao_Paulo)")
+	log.Println("[CRON] Serviço de reconciliação iniciado (a cada hora; fuso: America/Sao_Paulo)")
 }
 
-// RunDailyJobs executa todos os jobs diários.
-// Exportado para que o endpoint de teste possa acioná-lo manualmente.
-func RunDailyJobs(repo *repository.AppRepository, closingService *services.ClosingService) {
-	runAutoClosing(repo, closingService)
-	runOverdueUpdate(repo)
-	runRaceOverdueUpdate(repo)
+// RunDailyJobs uses a PostgreSQL transaction-level advisory lock. Multiple API
+// instances may schedule the job, but only one can execute it at a time.
+func RunDailyJobs(repo *repository.AppRepository) error {
+	return runDailyJobsAt(repo, time.Now())
 }
 
-func runOverdueUpdate(repo *repository.AppRepository) {
-	now := time.Now().In(BrazilLocation())
+func runDailyJobsAt(repo *repository.AppRepository, now time.Time) error {
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		var acquired bool
+		if err := tx.Raw("SELECT pg_try_advisory_xact_lock(?)", int64(723_051_001)).Scan(&acquired).Error; err != nil {
+			return fmt.Errorf("acquire daily jobs lock: %w", err)
+		}
+		if !acquired {
+			log.Println("[CRON] Outra instância já está executando os jobs financeiros")
+			return nil
+		}
+
+		if err := tx.Where("expires_at <= ?", now.UTC()).Delete(&models.AdminSession{}).Error; err != nil {
+			return fmt.Errorf("delete expired sessions: %w", err)
+		}
+
+		txRepo := repository.NewRepository(tx)
+		txClosingService := services.NewClosingService(txRepo)
+		if err := runAutoClosing(txRepo, txClosingService, now); err != nil {
+			return err
+		}
+		if err := runOverdueUpdate(txRepo, now); err != nil {
+			return err
+		}
+		if err := runRaceOverdueUpdate(txRepo, now); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func runOverdueUpdate(repo *repository.AppRepository, now time.Time) error {
 	result := repo.DB.Model(&models.ClosingHistory{}).
-		Where("status = ? AND due_date < ?", models.StatusPendente, now).
+		Where("status = ? AND due_date < ?", models.StatusPendente, now.UTC()).
 		Update("status", models.StatusAtrasado)
 	if result.Error != nil {
-		log.Printf("[CRON] Erro ao atualizar status para ATRASADO: %v", result.Error)
-	} else if result.RowsAffected > 0 {
+		return fmt.Errorf("update overdue closings: %w", result.Error)
+	}
+	if result.RowsAffected > 0 {
 		log.Printf("[CRON] %d fechamento(s) marcado(s) como ATRASADO", result.RowsAffected)
 	}
+	return nil
 }
 
-func runRaceOverdueUpdate(repo *repository.AppRepository) {
-	now := time.Now().In(BrazilLocation())
+func runRaceOverdueUpdate(repo *repository.AppRepository, now time.Time) error {
 	result := repo.DB.Table("race_entries").
-		Where("status = ? AND due_date < ?", models.RaceStatusPendente, now).
+		Where("status = ? AND due_date < ?", models.RaceStatusPendente, now.UTC()).
 		Update("status", models.RaceStatusAtrasado)
 	if result.Error != nil {
-		log.Printf("[CRON] Erro ao atualizar corridas para ATRASADO: %v", result.Error)
-	} else if result.RowsAffected > 0 {
+		return fmt.Errorf("update overdue race entries: %w", result.Error)
+	}
+	if result.RowsAffected > 0 {
 		log.Printf("[CRON] %d corrida(s) marcada(s) como ATRASADO", result.RowsAffected)
 	}
+	return nil
 }
 
-func runAutoClosing(repo *repository.AppRepository, closingService *services.ClosingService) {
-	now := time.Now().In(BrazilLocation())
-	currentDay := now.Day()
-
-	// Verifica se hoje é o último dia do mês atual
-	tomorrow := now.AddDate(0, 0, 1)
-	isLastDayOfMonth := tomorrow.Day() == 1
-
+func runAutoClosing(repo *repository.AppRepository, closingService *services.ClosingService, now time.Time) error {
 	var pilots []models.Pilot
-
-	if isLastDayOfMonth {
-		// Se for o último dia do mês, pega todos que tem fechamento hoje ou em dias que não existem neste mês
-		// Ex: Mês acaba dia 28, pega pilotos com vencimento 28, 29, 30, 31
-		repo.DB.Where("closing_day >= ?", currentDay).Find(&pilots)
-	} else {
-		// Senão, pega apenas os pilotos com fechamento exatamente para hoje
-		repo.DB.Where("closing_day = ?", currentDay).Find(&pilots)
+	if err := repo.DB.Preload("ClosingHistories").Find(&pilots).Error; err != nil {
+		return fmt.Errorf("list pilots for automatic closing: %w", err)
 	}
 
 	for _, pilot := range pilots {
-		// Verifica se o piloto já tem fechamento para este mês para evitar duplicatas
-		var existingCount int64
-		monthRef := now.Format("2006/01") // yyyy/mm
-		repo.DB.Model(&models.ClosingHistory{}).
-			Where("pilot_id = ? AND month_reference = ?", pilot.ID, monthRef).
-			Count(&existingCount)
-
-		if existingCount > 0 {
-			log.Printf("[CRON] Piloto %d (%s) já possui fechamento para %s. Pulando...", pilot.ID, pilot.Name, monthRef)
-			continue
-		}
-
-		log.Printf("[CRON] Realizando fechamento do piloto %d (%s)...", pilot.ID, pilot.Name)
-		_, err := closingService.FinalizeClosing(pilot.ID, now.Year(), int(now.Month()))
-		if err != nil {
-			log.Printf("[CRON] Erro ao fechar piloto %d: %v", pilot.ID, err)
-		} else {
-			log.Printf("[CRON] Piloto %d fechado com sucesso", pilot.ID)
+		for _, period := range pendingPeriods(pilot, now) {
+			log.Printf("[CRON] Realizando fechamento %s do piloto %d (%s)...", period.Reference(), pilot.ID, pilot.Name)
+			_, err := closingService.FinalizeScheduledClosing(
+				pilot.ID,
+				period.Year,
+				int(period.Month),
+				period.ClosingAt,
+			)
+			if errors.Is(err, services.ErrClosingAlreadyExists) {
+				continue
+			}
+			if err != nil {
+				return fmt.Errorf("close pilot %d period %s: %w", pilot.ID, period.Reference(), err)
+			}
+			log.Printf("[CRON] Fechamento %s do piloto %d concluído", period.Reference(), pilot.ID)
 		}
 	}
+	return nil
+}
+
+func pendingPeriods(pilot models.Pilot, now time.Time) []closingdomain.Period {
+	existing := make(map[string]struct{}, len(pilot.ClosingHistories))
+	for _, history := range pilot.ClosingHistories {
+		existing[history.MonthReference] = struct{}{}
+	}
+
+	due := closingdomain.DuePeriods(pilot.CreatedAt, pilot.ClosingDay, now, BrazilLocation())
+	pending := make([]closingdomain.Period, 0, len(due))
+	for _, period := range due {
+		if _, found := existing[period.Reference()]; !found {
+			pending = append(pending, period)
+		}
+	}
+	return pending
 }

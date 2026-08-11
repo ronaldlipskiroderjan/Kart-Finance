@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"kartfinance-api/internal/auth"
 	"kartfinance-api/models"
 	"kartfinance-api/repository"
 
@@ -34,19 +35,31 @@ func (ac *AdminController) GetAllAdmins(c *fiber.Ctx) error {
 
 // CreateAdmin - POST /admins
 func (ac *AdminController) CreateAdmin(c *fiber.Ctx) error {
-	admin := new(models.Admin)
-	if err := c.BodyParser(admin); err != nil {
+	var input struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Role     string `json:"role"`
+	}
+	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Dados inválidos"})
+	}
+	hashedPassword, err := auth.HashPassword(input.Password)
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "A senha deve ter pelo menos 8 caracteres"})
+	}
+	admin := &models.Admin{
+		Name: input.Name, Email: input.Email, Password: hashedPassword, Role: input.Role,
 	}
 
 	if admin.Role == "" {
 		admin.Role = "admin"
 	}
 
-	if err := ac.Repo.DB.Create(&admin).Error; err != nil {
+	if err := ac.Repo.DB.Create(admin).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Erro ao criar administrador. Email já existe?"})
 	}
-	
+
 	admin.Password = ""
 	return c.Status(fiber.StatusCreated).JSON(admin)
 }
@@ -70,11 +83,14 @@ func (ac *AdminController) UpdateAdmin(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Dados inválidos"})
 	}
 
-	ac.Repo.DB.Model(&admin).Updates(models.Admin{
-		Name:   updateData.Name,
-		Email:  updateData.Email,
-		PixKey: updateData.PixKey,
-	})
+	if err := ac.Repo.DB.Model(&admin).Updates(map[string]any{
+		"name": updateData.Name, "email": updateData.Email, "pix_key": updateData.PixKey,
+	}).Error; err != nil {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Não foi possível atualizar o administrador"})
+	}
+	admin.Name = updateData.Name
+	admin.Email = updateData.Email
+	admin.PixKey = updateData.PixKey
 
 	admin.Password = ""
 	return c.JSON(admin)
@@ -98,11 +114,16 @@ func (ac *AdminController) UpdatePassword(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Dados inválidos"})
 	}
 
-	if admin.Password != data.CurrentPassword {
+	if !auth.VerifyPassword(admin.Password, data.CurrentPassword) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Senha atual incorreta"})
 	}
-
-	ac.Repo.DB.Model(&admin).Update("password", data.NewPassword)
+	hashedPassword, err := auth.HashPassword(data.NewPassword)
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"message": "A nova senha deve ter pelo menos 8 caracteres"})
+	}
+	if err := ac.Repo.DB.Model(&admin).Update("password", hashedPassword).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Não foi possível atualizar a senha"})
+	}
 
 	return c.JSON(fiber.Map{"success": true, "message": "Senha atualizada com sucesso"})
 }

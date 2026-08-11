@@ -3,13 +3,16 @@ import Modal from './ui/Modal';
 import Button from './ui/Button';
 import Badge from './ui/Badge';
 import CommHistoryModal from './CommHistoryModal';
+import FinancialEntryForm from '../features/pilots/components/FinancialEntryForm';
+import { getProblemMessage } from '../services/client';
 import {
   getMonthlySummary, finalizeClosing,
-  createExpense, createReimbursement, deleteExpense, deleteReimbursement, deletePilot,
-  getPilotRaceEntries, payRaceEntry,
-} from '../services/api';
+  createExpense, createReimbursement, deleteExpense, deleteReimbursement,
+} from '../services/billingApi';
+import { deletePilot } from '../services/pilotsApi';
+import { getPilotRaceEntries, payRaceEntry } from '../services/racesApi';
 import { formatBRL, formatDate, formatMonthLabel, currentYearMonth } from '../utils/formatters';
-import { getActiveBillingMonth, isSameMonth } from '../utils/billing';
+import { getActiveBillingMonth, isEntryInPeriod } from '../utils/billing';
 import {
   PlusCircle, MinusCircle, CheckSquare, BarChart2, Trash2, History,
   AlertTriangle, Pencil, X, MessageCircle, Calendar,
@@ -28,7 +31,7 @@ const TABS = [
 
 export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }) {
   const navigate = useNavigate();
-  const { user, globalPixKey } = useAuth();
+  const { globalPixKey } = useAuth();
   const { addEntry } = useCommHistory();
 
   const [activeTab, setActiveTab] = useState('summary');
@@ -60,7 +63,6 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   const skipAutoAdvanceRef = useRef(false);
 
   const monthLabel = formatMonthLabel(activeYear, activeMonth);
-  const isAtCurrentMonth = isSameMonth(activeYear, activeMonth);
 
   // Navigation limits
   // Forward cap: active billing month (may be ahead of calendar if month was manually closed)
@@ -131,7 +133,6 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
   // Paid → fully locked; Pending/Overdue → allow adding expenses but hide "Fechar Mês"
   const isMonthPaid = activeMonthStatus === 'PAGO';
   const isMonthPending = activeMonthStatus === 'PENDENTE' || activeMonthStatus === 'ATRASADO';
-  const isMonthClosed = isMonthPaid;
 
   // Force Resumo tab only when viewing a fully paid month
   useEffect(() => {
@@ -167,7 +168,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       setExpMsg('✅ Gasto adicionado com sucesso!');
       setExpForm({ description: '', amount: '' });
       onRefresh();
-      if (activeTab === 'summary') fetchSummary();
+      if (activeTab === 'summary') fetchSummary(activeYear, activeMonth);
     } catch {
       setExpMsg('❌ Erro ao adicionar gasto.');
     } finally { setExpLoading(false); }
@@ -195,7 +196,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
       skipAutoAdvanceRef.current = true;
       onRefresh();
     } catch (err) {
-      const errMsg = err.response?.data?.error ?? err.response?.data ?? 'Erro ao fechar mês.';
+      const errMsg = getProblemMessage(err, 'Erro ao fechar mês.');
       setCloseMsg(`❌ ${errMsg}`);
       setShowCloseConfirm(false);
     } finally { setCloseLoading(false); }
@@ -218,22 +219,25 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     const raceDate = entry.raceWeekend?.date
       ? new Date(entry.raceWeekend.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
       : '';
-    const extras = entry.Extras ?? [];
-    const totalExtras = extras.reduce((sum, ex) => sum + (ex.Amount ?? 0), 0);
-    const totalAmount = (entry.amount ?? entry.Amount ?? 0) + totalExtras;
+    const extras = entry.extras ?? [];
+    const reimbursements = entry.reimbursements ?? [];
+    const totalExtras = extras.reduce((sum, expense) => sum + (expense.amount ?? 0), 0);
+    const totalReimbursements = reimbursements.reduce((sum, reimbursement) => sum + (reimbursement.amount ?? 0), 0);
+    const totalAmount = (entry.amount ?? 0) + totalExtras - totalReimbursements;
     const lines = [
       `📋 *Fatura RA Kart Racing — ${pilot.name}*`,
       `📅 Evento: ${raceName}`,
       ...(raceDate ? [`🗓️ Data: ${raceDate}`] : []),
       ``,
-      `🏎️ Corrida: ${formatBRL(entry.amount ?? entry.Amount)}`,
+      `🏎️ Corrida: ${formatBRL(entry.amount)}`,
       ...(extras.length > 0 ? [
         ``,
         `📋 *Extras:*`,
-        ...extras.map(ex => `  + ${ex.Description}: ${formatBRL(ex.Amount)}`),
+        ...extras.map(expense => `  + ${expense.description}: ${formatBRL(expense.amount)}`),
         ``,
         `📈 *Subtotal extras: +${formatBRL(totalExtras)}*`,
       ] : []),
+      ...(reimbursements.length > 0 ? [``, `💚 *Reembolsos:*`, ...reimbursements.map(reimbursement => `  - ${reimbursement.description}: ${formatBRL(reimbursement.amount)}`)] : []),
       ``,
       `✅ *Total a pagar: ${formatBRL(totalAmount)}*`,
       ...(globalPixKey ? [
@@ -264,14 +268,8 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
     const netExpenses = (summary.totalExpenses ?? 0) - (summary.totalReimbursements ?? 0);
     const debt = summary.previousDebt ?? 0;
 
-    const expensesDetail = (pilot.expenses || []).filter(e => {
-      const d = new Date(e.createdAt);
-      return d.getFullYear() === activeYear && d.getMonth() + 1 === activeMonth;
-    });
-    const reimbursementsDetail = (pilot.reimbursements || []).filter(r => {
-      const d = new Date(r.createdAt);
-      return d.getFullYear() === activeYear && d.getMonth() + 1 === activeMonth;
-    });
+    const expensesDetail = (pilot.expenses || []).filter(entry => isEntryInPeriod(entry, activeYear, activeMonth));
+    const reimbursementsDetail = (pilot.reimbursements || []).filter(entry => isEntryInPeriod(entry, activeYear, activeMonth));
 
     const hasExtras = expensesDetail.length > 0 || reimbursementsDetail.length > 0;
 
@@ -442,7 +440,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
               return (
                 <button
                   key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); if (tab.id === 'summary' || tab.id === 'close') fetchSummary(); }}
+                  onClick={() => { setActiveTab(tab.id); if (tab.id === 'summary' || tab.id === 'close') fetchSummary(activeYear, activeMonth); }}
                   className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1
                               py-2 px-0.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
                     isActive ? 'bg-zinc-900 text-emerald-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
@@ -462,14 +460,8 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
             {loadingSummary && <p className="text-zinc-500 text-sm">Carregando…</p>}
             {summaryError && <p className="text-red-400 text-sm">{summaryError}</p>}
             {summary && !loadingSummary && (() => {
-              const expensesDetail = (pilot.expenses || []).filter(e => {
-                const d = new Date(e.createdAt);
-                return d.getFullYear() === activeYear && d.getMonth() + 1 === activeMonth;
-              });
-              const reimbursementsDetail = (pilot.reimbursements || []).filter(r => {
-                const d = new Date(r.createdAt);
-                return d.getFullYear() === activeYear && d.getMonth() + 1 === activeMonth;
-              });
+              const expensesDetail = (pilot.expenses || []).filter(entry => isEntryInPeriod(entry, activeYear, activeMonth));
+              const reimbursementsDetail = (pilot.reimbursements || []).filter(entry => isEntryInPeriod(entry, activeYear, activeMonth));
               const netExpenses = (summary.totalExpenses ?? 0) - (summary.totalReimbursements ?? 0);
               return (
                 <div className="space-y-4">
@@ -599,7 +591,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="text-sm text-red-400 whitespace-nowrap">+{formatBRL(e.amount)}</span>
-                              <button onClick={() => { deleteExpense(e.id).then(() => { fetchSummary(); onRefresh(); }); }}
+                              <button onClick={() => { deleteExpense(e.id).then(() => { fetchSummary(activeYear, activeMonth); onRefresh(); }); }}
                                 className="text-zinc-600 hover:text-red-400 transition-colors" title="Remover">
                                 <X size={13} />
                               </button>
@@ -622,7 +614,7 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="text-sm text-green-400 whitespace-nowrap">-{formatBRL(r.amount)}</span>
-                              <button onClick={() => { deleteReimbursement(r.id).then(() => { fetchSummary(); onRefresh(); }); }}
+                              <button onClick={() => { deleteReimbursement(r.id).then(() => { fetchSummary(activeYear, activeMonth); onRefresh(); }); }}
                                 className="text-zinc-600 hover:text-red-400 transition-colors" title="Remover">
                                 <X size={13} />
                               </button>
@@ -640,44 +632,26 @@ export default function PilotModal({ pilot, isOpen, onClose, onRefresh, onEdit }
 
         {/* ── EXPENSE TAB ── */}
         {activeTab === 'expense' && (
-          <form onSubmit={handleExpense} className="space-y-4">
-            <div>
-              <label className="label">Descrição do Gasto</label>
-              <input value={expForm.description} onChange={(e) => setExpForm(p => ({ ...p, description: e.target.value }))}
-                className="input-field" placeholder="Ex: Troca de pneus" required />
-            </div>
-            <div>
-              <label className="label">Valor (R$)</label>
-              <input type="number" step="0.01" min="0.01" value={expForm.amount}
-                onChange={(e) => setExpForm(p => ({ ...p, amount: e.target.value }))}
-                className="input-field" placeholder="Ex: 350.00" required />
-            </div>
-            {expMsg && <p className="text-sm text-zinc-400">{expMsg}</p>}
-            <Button type="submit" variant="primary" className="w-full" disabled={expLoading}>
-              {expLoading ? 'Salvando…' : 'Adicionar Gasto'}
-            </Button>
-          </form>
+          <FinancialEntryForm
+            kind="expense"
+            form={expForm}
+            onChange={setExpForm}
+            onSubmit={handleExpense}
+            message={expMsg}
+            loading={expLoading}
+          />
         )}
 
         {/* ── REIMBURSEMENT TAB ── */}
         {activeTab === 'reimbursement' && (
-          <form onSubmit={handleReimbursement} className="space-y-4">
-            <div>
-              <label className="label">Descrição do Reembolso</label>
-              <input value={rmbForm.description} onChange={(e) => setRmbForm(p => ({ ...p, description: e.target.value }))}
-                className="input-field" placeholder="Ex: Devolução de taxa" required />
-            </div>
-            <div>
-              <label className="label">Valor (R$)</label>
-              <input type="number" step="0.01" min="0.01" value={rmbForm.amount}
-                onChange={(e) => setRmbForm(p => ({ ...p, amount: e.target.value }))}
-                className="input-field" placeholder="Ex: 150.00" required />
-            </div>
-            {rmbMsg && <p className="text-sm text-zinc-400">{rmbMsg}</p>}
-            <Button type="submit" variant="primary" className="w-full" disabled={rmbLoading}>
-              {rmbLoading ? 'Salvando…' : 'Adicionar Reembolso'}
-            </Button>
-          </form>
+          <FinancialEntryForm
+            kind="reimbursement"
+            form={rmbForm}
+            onChange={setRmbForm}
+            onSubmit={handleReimbursement}
+            message={rmbMsg}
+            loading={rmbLoading}
+          />
         )}
 
         {/* ── CLOSE MONTH TAB ── */}

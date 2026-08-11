@@ -2,7 +2,7 @@ import { formatBRL } from '../utils/formatters';
 import Badge from './ui/Badge';
 import { ChevronRight, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getActiveBillingMonth, isSameMonth } from '../utils/billing';
+import { getActiveBillingMonth, isEntryInPeriod, isSameMonth } from '../utils/billing';
 
 const STATUS_BAR = {
   ATRASADO: 'bg-red-500',
@@ -16,14 +16,8 @@ function getPilotMonthTotals(pilot) {
   const rawExpenses = pilot.expenses || pilot.Expenses || [];
   const rawReimbursements = pilot.reimbursements || pilot.Reimbursements || [];
 
-  const expenses = rawExpenses.filter((e) => {
-    const d = new Date(e.createdAt || e.CreatedAt);
-    return d.getFullYear() === year && d.getMonth() + 1 === month;
-  });
-  const reimbursements = rawReimbursements.filter((r) => {
-    const d = new Date(r.createdAt || r.CreatedAt);
-    return d.getFullYear() === year && d.getMonth() + 1 === month;
-  });
+  const expenses = rawExpenses.filter((entry) => isEntryInPeriod(entry, year, month));
+  const reimbursements = rawReimbursements.filter((entry) => isEntryInPeriod(entry, year, month));
 
   const totalExpenses = expenses.reduce((s, e) => s + parseFloat(e.amount || e.Amount || 0), 0);
   const totalReimbursements = reimbursements.reduce((s, r) => s + parseFloat(r.amount || r.Amount || 0), 0);
