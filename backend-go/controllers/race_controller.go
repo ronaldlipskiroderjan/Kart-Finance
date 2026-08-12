@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"kartfinance-api/models"
 	"kartfinance-api/services"
 	"strconv"
 	"strings"
@@ -18,24 +19,24 @@ func NewRaceController(service *services.RaceService) *RaceController {
 }
 
 type createRaceWeekendInput struct {
-	Name        string `json:"Name"`
-	Date        string `json:"Date"`
-	Description string `json:"Description"`
+	Name        string `json:"name"`
+	Date        string `json:"date"`
+	Description string `json:"description"`
 }
 
 type addRaceEntryInput struct {
-	PilotID        *uint   `json:"PilotID"`        // piloto mensal (opcional)
-	GuestPilotName string  `json:"GuestPilotName"` // nome do piloto convidado (opcional)
-	Amount         float64 `json:"Amount"`
+	PilotID        *uint        `json:"pilotId"`        // piloto mensal (opcional)
+	GuestPilotName string       `json:"guestPilotName"` // nome do piloto convidado (opcional)
+	Amount         models.Money `json:"amount"`
 }
 
 type updateRaceEntryInput struct {
-	Amount float64 `json:"Amount"`
+	Amount models.Money `json:"amount"`
 }
 
 type addRaceEntryExpenseInput struct {
-	Description string  `json:"Description"`
-	Amount      float64 `json:"Amount"`
+	Description string       `json:"description"`
+	Amount      models.Money `json:"amount"`
 }
 
 // GET /races
@@ -234,12 +235,12 @@ func (rc *RaceController) PayEntry(c *fiber.Ctx) error {
 // ─── Race Agenda ──────────────────────────────────────────────────────────────
 
 type setAgendaSaldoInput struct {
-	Saldo float64 `json:"Saldo"`
+	Saldo models.Money `json:"saldo"`
 }
 
 type addAgendaExpenseInput struct {
-	Description string  `json:"Description"`
-	Amount      float64 `json:"Amount"`
+	Description string       `json:"description"`
+	Amount      models.Money `json:"amount"`
 }
 
 // GET /races/:id/agenda

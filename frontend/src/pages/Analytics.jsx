@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getPilots, getRaceWeekends } from '../services/api';
+import { getPilots } from '../services/pilotsApi';
+import { getRaceWeekends } from '../services/racesApi';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
 import PageHeader from '../components/layout/PageHeader';

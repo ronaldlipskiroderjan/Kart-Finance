@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
-import { createPilot, updatePilot } from '../services/api';
+import { createPilot, updatePilot } from '../services/pilotsApi';
 
 const CATEGORIES = ['125cc', 'F4', 'Cadete', 'Shifter'];
 

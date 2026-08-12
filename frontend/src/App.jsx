@@ -11,7 +11,8 @@ import CalendarView from './pages/CalendarView';
 import RacesView from './pages/RacesView';
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, authLoading } = useAuth();
+  if (authLoading) return <div className="app-loading" role="status">Carregando…</div>;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 

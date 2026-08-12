@@ -16,7 +16,7 @@ func NewExpenseController(repo *repository.AppRepository) *ExpenseController {
 	return &ExpenseController{Repo: repo}
 }
 
-//GetAllExpenses - GET /expenses
+// GetAllExpenses - GET /expenses
 func (ec *ExpenseController) GetAllExpenses(c *fiber.Ctx) error {
 	var expenses []models.Expense
 	if err := ec.Repo.DB.Find(&expenses).Error; err != nil {
@@ -28,24 +28,40 @@ func (ec *ExpenseController) GetAllExpenses(c *fiber.Ctx) error {
 // CreateExpense - POST /expenses
 func (ec *ExpenseController) CreateExpense(c *fiber.Ctx) error {
 	type ExpenseInput struct {
-			Description string  `json:"description"`
-			Amount      float64 `json:"amount"`
-			Pilot       struct {
-					ID uint `json:"id"`
-			} `json:"pilot"`
-			Year  int `json:"year"`
-			Month int `json:"month"`
+		Description string       `json:"description"`
+		Amount      models.Money `json:"amount"`
+		Pilot       struct {
+			ID uint `json:"id"`
+		} `json:"pilot"`
+		Year  int `json:"year"`
+		Month int `json:"month"`
 	}
 
 	var input ExpenseInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Dados inválidos"})
+	}
+	if input.Pilot.ID == 0 || input.Amount <= 0 || input.Description == "" {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "Piloto, descrição e valor positivo são obrigatórios"})
 	}
 
+	now := time.Now()
+	year, month := input.Year, input.Month
+	if year == 0 && month == 0 {
+		year, month = now.Year(), int(now.Month())
+	}
+	if year < 2000 || year > 2200 || month < 1 || month > 12 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "Período contábil inválido"})
+	}
+	referencePeriod := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	legacyCreatedAt := time.Date(year, time.Month(month), 15, 12, 0, 0, 0, time.Local)
+
 	expense := models.Expense{
-			Description: input.Description,
-			Amount:      input.Amount,
-			PilotID:     input.Pilot.ID,
+		Description:     input.Description,
+		Amount:          input.Amount,
+		PilotID:         input.Pilot.ID,
+		ReferencePeriod: referencePeriod,
+		CreatedAt:       legacyCreatedAt,
 	}
 
 	// Salvar no Banco
@@ -53,20 +69,10 @@ func (ec *ExpenseController) CreateExpense(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Erro ao salvar despesa"})
 	}
 
-	// Override CreatedAt se o ano e o mês forem informados
-	if input.Year > 0 && input.Month > 0 {
-		// Cria data no dia 15 ao meio-dia para garantir que não haja mudança de mês por fuso horário (Timezone)
-		newTime := time.Date(input.Year, time.Month(input.Month), 15, 12, 0, 0, 0, time.Local)
-		
-		if err := ec.Repo.DB.Model(&expense).Update("created_at", newTime).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Erro ao atualizar data da despesa"})
-		}
-	}
-
 	return c.Status(fiber.StatusCreated).JSON(expense)
 }
 
-//DeleteExpense - DELETE /expenses/:id
+// DeleteExpense - DELETE /expenses/:id
 func (ec *ExpenseController) DeleteExpense(c *fiber.Ctx) error {
 	id := c.Params("id")
 

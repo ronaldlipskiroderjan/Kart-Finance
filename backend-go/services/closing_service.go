@@ -1,13 +1,19 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
+	"kartfinance-api/domain/billing"
 	"kartfinance-api/dtos"
 	"kartfinance-api/models"
 	"kartfinance-api/repository"
+
+	"gorm.io/gorm"
 )
+
+var ErrClosingAlreadyExists = errors.New("o período já foi fechado para este piloto")
 
 type ClosingService struct {
 	Repo *repository.AppRepository
@@ -18,87 +24,101 @@ func NewClosingService(repo *repository.AppRepository) *ClosingService {
 }
 
 func (s *ClosingService) GenerateMonthlySummary(pilotID uint, year int, month int) (*dtos.ClosingSummaryDTO, error) {
-	
+	if year < 2000 || year > 2200 || month < 1 || month > 12 {
+		return nil, fmt.Errorf("período contábil inválido")
+	}
+
 	var pilot models.Pilot
 	if err := s.Repo.DB.First(&pilot, pilotID).Error; err != nil {
 		return nil, err
 	}
 
 	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 1, 0).Add(-time.Nanosecond)
-
-	expenses, _ := s.Repo.FindExpensesByPilotAndDate(pilotID, start, end)
-	reimbursements, _ := s.Repo.FindReimbursementsByPilotAndDate(pilotID, start, end)
-
-	var totalExpenses, totalReimbursements float64
-	for _, e := range expenses {
-		totalExpenses += e.Amount
+	end := start.AddDate(0, 1, 0)
+	expenses, err := s.Repo.FindExpensesByPilotAndDate(pilotID, start, end)
+	if err != nil {
+		return nil, err
 	}
-
-	for _, r := range reimbursements {
-		totalReimbursements += r.Amount
-	}
-
-	totalAmount := pilot.BaseFee + totalExpenses - totalReimbursements
-
-	// Calculate previous debt: only closings already marked ATRASADO count as debt
-	var previousDebt float64
-	var unpaidHistories []models.ClosingHistory
-	s.Repo.DB.Where("pilot_id = ? AND status = ?", pilotID, models.StatusAtrasado).Find(&unpaidHistories)
-
-	for _, h := range unpaidHistories {
-		previousDebt += h.TotalAmount
-	}
-
-	finalAmount := totalAmount + previousDebt
-
-	return &dtos.ClosingSummaryDTO{
-		PilotName:           pilot.Name,
-		BaseFee:             pilot.BaseFee,
-		TotalExpenses:       totalExpenses,
-		TotalReimbursements: totalReimbursements,
-		TotalAmount:         totalAmount,
-		PreviousDebt:        previousDebt,
-		UnpaidMonthsCount:   len(unpaidHistories),
-		FinalAmount:         finalAmount,
-		Year:                year,
-		Month:               month,
-	}, nil
-}
-
-func (s *ClosingService) FinalizeClosing(pilotID uint, year int, month int) (*models.ClosingHistory, error) {
-	monthRef := fmt.Sprintf("%d/%02d", year, month)
-
-	// Impede fechamento duplicado para o mesmo piloto/mês
-	var existingCount int64
-	s.Repo.DB.Model(&models.ClosingHistory{}).
-		Where("pilot_id = ? AND month_reference = ?", pilotID, monthRef).
-		Count(&existingCount)
-	if existingCount > 0 {
-		return nil, fmt.Errorf("o mês %s já foi fechado para este piloto", monthRef)
-	}
-
-	summary, err := s.GenerateMonthlySummary(pilotID, year, month)
+	reimbursements, err := s.Repo.FindReimbursementsByPilotAndDate(pilotID, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	history := models.ClosingHistory{
-		PilotID:             pilotID,
-		MonthReference:      monthRef,
-		TotalAmount:         summary.TotalAmount,
-		BaseFee:             summary.BaseFee,
-		TotalExpenses:       summary.TotalExpenses,
-		TotalReimbursements: summary.TotalReimbursements,
-		Status:              models.StatusPendente,
-		DueDate:             time.Now().AddDate(0, 0, 7),
+	expenseAmounts := make([]models.Money, 0, len(expenses))
+	for _, entry := range expenses {
+		expenseAmounts = append(expenseAmounts, entry.Amount)
+	}
+	reimbursementAmounts := make([]models.Money, 0, len(reimbursements))
+	for _, entry := range reimbursements {
+		reimbursementAmounts = append(reimbursementAmounts, entry.Amount)
 	}
 
-	if err := s.Repo.DB.Create(&history).Error; err != nil {
+	var overdueClosings []models.ClosingHistory
+	if err := s.Repo.DB.Where("pilot_id = ? AND status = ?", pilotID, models.StatusAtrasado).Find(&overdueClosings).Error; err != nil {
 		return nil, err
 	}
+	overdueAmounts := make([]models.Money, 0, len(overdueClosings))
+	for _, closing := range overdueClosings {
+		overdueAmounts = append(overdueAmounts, closing.TotalAmount)
+	}
 
-	return &history, nil
+	calculated := billing.Calculate(pilot.BaseFee, expenseAmounts, reimbursementAmounts, overdueAmounts)
+	return &dtos.ClosingSummaryDTO{
+		PilotName: pilot.Name, BaseFee: calculated.BaseFee,
+		TotalExpenses: calculated.TotalExpenses, TotalReimbursements: calculated.TotalReimbursements,
+		TotalAmount: calculated.CurrentPeriodAmount, PreviousDebt: calculated.PreviousDebt,
+		UnpaidMonthsCount: calculated.UnpaidPeriodsCount, FinalAmount: calculated.FinalAmount,
+		Year: year, Month: month,
+	}, nil
+}
+
+func (s *ClosingService) FinalizeClosing(pilotID uint, year int, month int) (*models.ClosingHistory, error) {
+	return s.finalizeClosing(pilotID, year, month, time.Now().UTC().AddDate(0, 0, 7))
+}
+
+// FinalizeScheduledClosing preserves the original business deadline when a
+// sleeping or temporarily unavailable API reconciles an overdue period.
+func (s *ClosingService) FinalizeScheduledClosing(pilotID uint, year int, month int, closingAt time.Time) (*models.ClosingHistory, error) {
+	return s.finalizeClosing(pilotID, year, month, closingAt.AddDate(0, 0, 7).UTC())
+}
+
+func (s *ClosingService) finalizeClosing(pilotID uint, year int, month int, dueDate time.Time) (*models.ClosingHistory, error) {
+	monthRef := fmt.Sprintf("%d/%02d", year, month)
+	var created models.ClosingHistory
+
+	err := s.Repo.DB.Transaction(func(tx *gorm.DB) error {
+		txRepo := repository.NewRepository(tx)
+		txService := NewClosingService(txRepo)
+
+		var count int64
+		if err := tx.Model(&models.ClosingHistory{}).
+			Where("pilot_id = ? AND month_reference = ?", pilotID, monthRef).
+			Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return ErrClosingAlreadyExists
+		}
+
+		summary, err := txService.GenerateMonthlySummary(pilotID, year, month)
+		if err != nil {
+			return err
+		}
+		created = models.ClosingHistory{
+			PilotID: pilotID, MonthReference: monthRef, TotalAmount: summary.TotalAmount,
+			BaseFee: summary.BaseFee, TotalExpenses: summary.TotalExpenses,
+			TotalReimbursements: summary.TotalReimbursements, Status: models.StatusPendente,
+			DueDate: dueDate,
+		}
+		return tx.Create(&created).Error
+	})
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return nil, ErrClosingAlreadyExists
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &created, nil
 }
 
 func (s *ClosingService) GetPilotHistory(pilotID uint) ([]models.ClosingHistory, error) {
@@ -106,26 +126,37 @@ func (s *ClosingService) GetPilotHistory(pilotID uint) ([]models.ClosingHistory,
 }
 
 func (s *ClosingService) MarkAsPaid(closingID uint) error {
-	var history models.ClosingHistory
-
-	if err := s.Repo.DB.First(&history, closingID).Error; err != nil {
-		return err
+	now := time.Now().UTC()
+	result := s.Repo.DB.Model(&models.ClosingHistory{}).
+		Where("id = ? AND status <> ?", closingID, models.StatusPago).
+		Updates(map[string]any{
+			"status": models.StatusPago, "payment_date": now,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		return nil
 	}
 
-	now := time.Now()
-
-	return s.Repo.DB.Model(&history).Updates(models.ClosingHistory{
-		Status:      models.StatusPago,
-		PaymentDate: &now,
-	}).Error
+	var count int64
+	if err := s.Repo.DB.Model(&models.ClosingHistory{}).Where("id = ?", closingID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	// Already paid: preserve the original payment timestamp.
+	return nil
 }
 
 func (s *ClosingService) DeleteClosing(closingID uint) error {
-	var history models.ClosingHistory
-
-	if err := s.Repo.DB.First(&history, closingID).Error; err != nil {
-		return fmt.Errorf("fechamento não encontrado")
+	result := s.Repo.DB.Delete(&models.ClosingHistory{}, closingID)
+	if result.Error != nil {
+		return result.Error
 	}
-
-	return s.Repo.DB.Delete(&history).Error
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

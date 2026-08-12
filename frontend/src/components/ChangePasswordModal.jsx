@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
-import { updatePassword } from '../services/api';
+import { updatePassword } from '../services/adminApi';
 import { Key } from 'lucide-react';
 
 export default function ChangePasswordModal({ isOpen, onClose, userId, onSuccess }) {

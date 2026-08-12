@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getPilots } from '../services/api';
+import { getPilots } from '../services/pilotsApi';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
 import PageHeader from '../components/layout/PageHeader';

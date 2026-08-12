@@ -29,10 +29,10 @@ func (rc *ReimbursementController) GetAllReimbursements(c *fiber.Ctx) error {
 // CreateReimbursement - POST /reimbursements
 func (rc *ReimbursementController) CreateReimbursement(c *fiber.Ctx) error {
 	type ReimbursementInput struct {
-		Description string  `json:"description"`
-		Amount      float64 `json:"amount"`
+		Description string       `json:"description"`
+		Amount      models.Money `json:"amount"`
 		Pilot       struct {
-				ID uint `json:"id"`
+			ID uint `json:"id"`
 		} `json:"pilot"`
 		Year  int `json:"year"`
 		Month int `json:"month"`
@@ -40,29 +40,35 @@ func (rc *ReimbursementController) CreateReimbursement(c *fiber.Ctx) error {
 
 	var input ReimbursementInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Dados inválidos"})
 	}
+	if input.Pilot.ID == 0 || input.Amount <= 0 || input.Description == "" {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "Piloto, descrição e valor positivo são obrigatórios"})
+	}
+
+	now := time.Now()
+	year, month := input.Year, input.Month
+	if year == 0 && month == 0 {
+		year, month = now.Year(), int(now.Month())
+	}
+	if year < 2000 || year > 2200 || month < 1 || month > 12 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "Período contábil inválido"})
+	}
+	referencePeriod := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	legacyCreatedAt := time.Date(year, time.Month(month), 15, 12, 0, 0, 0, time.Local)
 
 	// Monta a entidade
 	reimbursement := models.Reimbursement{
-		Description: input.Description,
-		Amount:      input.Amount,
-		PilotID:     input.Pilot.ID,
+		Description:     input.Description,
+		Amount:          input.Amount,
+		PilotID:         input.Pilot.ID,
+		ReferencePeriod: referencePeriod,
+		CreatedAt:       legacyCreatedAt,
 	}
 
 	//Salva no Banco
 	if err := rc.Repo.DB.Create(&reimbursement).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Erro ao salvar reembolso"})
-	}
-
-	// Override CreatedAt se o ano e o mês forem informados
-	if input.Year > 0 && input.Month > 0 {
-		// Cria data no dia 15 ao meio-dia para garantir que não haja mudança de mês por fuso horário (Timezone)
-		newTime := time.Date(input.Year, time.Month(input.Month), 15, 12, 0, 0, 0, time.Local)
-		
-		if err := rc.Repo.DB.Model(&reimbursement).Update("created_at", newTime).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Erro ao atualizar data do reembolso"})
-		}
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(reimbursement)

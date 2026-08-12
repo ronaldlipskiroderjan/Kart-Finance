@@ -83,3 +83,8 @@ go.work.sum
 *.db
 
 .aiexclude
+
+# Vercel and Vite local state
+.vercel/
+frontend/.vercel/
+frontend/.vite/

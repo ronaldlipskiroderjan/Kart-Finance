@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: kart-finance-api
+    runtime: go
+    plan: free
+    region: virginia
+    rootDir: backend-go
+    buildCommand: ./scripts/render-build.sh
+    startCommand: ./scripts/render-start.sh
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SESSION_COOKIE_SAME_SITE
+        value: "None"

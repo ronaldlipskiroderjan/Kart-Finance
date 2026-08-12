@@ -1,0 +1,340 @@
+openapi: 3.1.0
+info:
+  title: Kart Finance API
+  version: 1.0.0
+  description: >-
+    API REST versionada. Operações autenticadas usam o cookie kart_session;
+    operações mutáveis também exigem o header X-CSRF-Token devolvido no login
+    ou em GET /me.
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+paths:
+  /health:
+    get:
+      security: []
+      operationId: healthCheck
+      responses:
+        '200': { description: Serviço disponível }
+  /auth/sessions:
+    post:
+      security: []
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '201': { description: Sessão criada }
+        '401': { $ref: '#/components/responses/Problem' }
+  /auth/sessions/current:
+    delete:
+      operationId: deleteCurrentSession
+      responses:
+        '204': { description: Sessão encerrada }
+  /me:
+    get:
+      operationId: getCurrentUser
+      responses:
+        '200': { description: Administrador autenticado e token CSRF }
+  /settings:
+    get:
+      operationId: getSettings
+      responses:
+        '200': { description: Configurações globais }
+    patch:
+      operationId: updateSettings
+      responses:
+        '200': { description: Configurações atualizadas }
+  /admins:
+    get:
+      operationId: listAdmins
+      responses:
+        '200': { description: Administradores }
+    post:
+      operationId: createAdmin
+      responses:
+        '201': { description: Administrador criado }
+  /admins/{adminId}:
+    parameters:
+      - $ref: '#/components/parameters/AdminId'
+    patch:
+      operationId: updateAdmin
+      responses:
+        '200': { description: Administrador atualizado }
+    delete:
+      operationId: deleteAdmin
+      responses:
+        '204': { description: Administrador removido }
+  /admins/{adminId}/password:
+    parameters:
+      - $ref: '#/components/parameters/AdminId'
+    put:
+      operationId: replaceAdminPassword
+      responses:
+        '200': { description: Senha substituída }
+  /pilot-overviews:
+    get:
+      operationId: listPilotOverviews
+      responses:
+        '200': { description: Visão agregada dos pilotos }
+  /pilots:
+    get:
+      operationId: listPilots
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Coleção paginada de pilotos }
+    post:
+      operationId: createPilot
+      responses:
+        '201': { description: Piloto criado }
+        '422': { $ref: '#/components/responses/Problem' }
+  /pilots/{pilotId}:
+    parameters:
+      - $ref: '#/components/parameters/PilotId'
+    get:
+      operationId: getPilot
+      responses:
+        '200': { description: Piloto }
+        '404': { $ref: '#/components/responses/Problem' }
+    patch:
+      operationId: updatePilot
+      responses:
+        '200': { description: Piloto atualizado }
+    delete:
+      operationId: deletePilot
+      responses:
+        '204': { description: Piloto removido }
+  /pilots/{pilotId}/expenses:
+    parameters:
+      - $ref: '#/components/parameters/PilotId'
+    get:
+      operationId: listPilotExpenses
+      parameters:
+        - $ref: '#/components/parameters/Period'
+      responses:
+        '200': { description: Despesas do piloto }
+    post:
+      operationId: createPilotExpense
+      responses:
+        '201': { description: Despesa criada }
+  /expenses/{expenseId}:
+    delete:
+      operationId: deleteExpense
+      parameters:
+        - $ref: '#/components/parameters/ExpenseId'
+      responses:
+        '204': { description: Despesa removida }
+  /pilots/{pilotId}/reimbursements:
+    parameters:
+      - $ref: '#/components/parameters/PilotId'
+    get:
+      operationId: listPilotReimbursements
+      parameters:
+        - $ref: '#/components/parameters/Period'
+      responses:
+        '200': { description: Reembolsos do piloto }
+    post:
+      operationId: createPilotReimbursement
+      responses:
+        '201': { description: Reembolso criado }
+  /reimbursements/{reimbursementId}:
+    delete:
+      operationId: deleteReimbursement
+      parameters:
+        - $ref: '#/components/parameters/ReimbursementId'
+      responses:
+        '204': { description: Reembolso removido }
+  /pilots/{pilotId}/closing-preview:
+    parameters:
+      - $ref: '#/components/parameters/PilotId'
+      - $ref: '#/components/parameters/RequiredPeriod'
+    get:
+      operationId: previewClosing
+      responses:
+        '200': { description: Prévia do fechamento }
+  /pilots/{pilotId}/closings:
+    parameters:
+      - $ref: '#/components/parameters/PilotId'
+    get:
+      operationId: listPilotClosings
+      responses:
+        '200': { description: Fechamentos do piloto }
+    post:
+      operationId: createClosing
+      responses:
+        '201': { description: Fechamento criado }
+        '409': { $ref: '#/components/responses/Problem' }
+  /closings/{closingId}:
+    delete:
+      operationId: deleteClosing
+      parameters:
+        - $ref: '#/components/parameters/ClosingId'
+      responses:
+        '204': { description: Fechamento removido }
+  /closings/{closingId}/payments:
+    post:
+      operationId: createClosingPayment
+      parameters:
+        - $ref: '#/components/parameters/ClosingId'
+      responses:
+        '201': { description: Pagamento registrado de forma idempotente }
+  /guest-pilots:
+    get:
+      operationId: listGuestPilots
+      responses:
+        '200': { description: Pilotos convidados }
+  /pilots/{pilotId}/race-entries:
+    get:
+      operationId: listPilotRaceEntries
+      parameters:
+        - $ref: '#/components/parameters/PilotId'
+      responses:
+        '200': { description: Participações do piloto em corridas }
+  /race-weekends:
+    get:
+      operationId: listRaceWeekends
+      responses:
+        '200': { description: Fins de semana de corrida }
+    post:
+      operationId: createRaceWeekend
+      responses:
+        '201': { description: Fim de semana criado }
+  /race-weekends/{raceId}:
+    parameters:
+      - $ref: '#/components/parameters/RaceId'
+    get:
+      operationId: getRaceWeekend
+      responses:
+        '200': { description: Fim de semana de corrida }
+    patch:
+      operationId: updateRaceWeekend
+      responses:
+        '200': { description: Fim de semana atualizado }
+    delete:
+      operationId: deleteRaceWeekend
+      responses:
+        '200': { description: Fim de semana removido }
+  /race-weekends/{raceId}/entries:
+    post:
+      operationId: createRaceEntry
+      parameters:
+        - $ref: '#/components/parameters/RaceId'
+      responses:
+        '201': { description: Participação criada }
+  /race-weekends/{raceId}/agenda:
+    parameters:
+      - $ref: '#/components/parameters/RaceId'
+    get:
+      operationId: getRaceAgenda
+      responses:
+        '200': { description: Caixa da viagem, sem mutação }
+    put:
+      operationId: replaceRaceAgendaBalance
+      responses:
+        '200': { description: Saldo do caixa atualizado }
+  /race-weekends/{raceId}/agenda/expenses:
+    post:
+      operationId: createRaceAgendaExpense
+      parameters:
+        - $ref: '#/components/parameters/RaceId'
+      responses:
+        '201': { description: Gasto do caixa criado }
+  /race-entries/{entryId}:
+    parameters:
+      - $ref: '#/components/parameters/EntryId'
+    patch:
+      operationId: updateRaceEntry
+      responses:
+        '200': { description: Participação atualizada }
+    delete:
+      operationId: deleteRaceEntry
+      responses:
+        '200': { description: Participação removida }
+  /race-entries/{entryId}/payments:
+    post:
+      operationId: createRaceEntryPayment
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '200': { description: Pagamento registrado de forma idempotente }
+  /race-entries/{entryId}/expenses:
+    post:
+      operationId: createRaceEntryExpense
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '201': { description: Gasto extra criado }
+  /race-entries/{entryId}/reimbursements:
+    post:
+      operationId: createRaceEntryReimbursement
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '201': { description: Reembolso criado }
+  /race-entry-expenses/{expenseId}:
+    delete:
+      operationId: deleteRaceEntryExpense
+      parameters:
+        - $ref: '#/components/parameters/ExpenseId'
+      responses:
+        '200': { description: Gasto extra removido }
+  /race-entry-reimbursements/{reimbursementId}:
+    delete:
+      operationId: deleteRaceEntryReimbursement
+      parameters:
+        - $ref: '#/components/parameters/ReimbursementId'
+      responses:
+        '200': { description: Reembolso removido }
+  /race-agenda-expenses/{expenseId}:
+    delete:
+      operationId: deleteRaceAgendaExpense
+      parameters:
+        - $ref: '#/components/parameters/ExpenseId'
+      responses:
+        '200': { description: Gasto do caixa removido }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: kart_session
+  parameters:
+    AdminId: { name: adminId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    PilotId: { name: pilotId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    ExpenseId: { name: expenseId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    ReimbursementId: { name: reimbursementId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    ClosingId: { name: closingId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    RaceId: { name: raceId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    EntryId: { name: entryId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    Period: { name: period, in: query, required: false, schema: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' } }
+316c    RequiredPeriod: { name: period, in: query, required: true, schema: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' } }
+    RequiredPeriod: { name: period, in: query, required: true, schema: { type: string, pattern: '^\\d{4}-(0[1-9]|1[0-2])$' } }
+  responses:
+    Problem:
+      description: A requisição falhou
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        requestId: { type: string }

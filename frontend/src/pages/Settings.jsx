@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
 import PageHeader from '../components/layout/PageHeader';
-import { getAdmins, updateAdmin, deleteAdmin } from '../services/api';
+import { getAdmins, updateAdmin, deleteAdmin } from '../services/adminApi';
 import { User, Users, Save, Plus, Trash2, Loader, QrCode, Lock, Mail, LogOut, AlertCircle, CheckCircle2, Globe, Settings as SettingsIcon } from 'lucide-react';
 import { validatePixKey } from '../utils/pixQR';
 import Button from '../components/ui/Button';
@@ -80,7 +80,7 @@ function Settings() {
     try {
       await deleteAdmin(id);
       fetchAdmins();
-    } catch (err) {
+    } catch {
       alert('Erro ao excluir administrador');
     }
   };

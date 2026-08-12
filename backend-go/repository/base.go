@@ -2,9 +2,8 @@ package repository
 
 import "gorm.io/gorm"
 
-
 type AppRepository struct {
-		DB *gorm.DB
+	DB *gorm.DB
 }
 
 func NewRepository(db *gorm.DB) *AppRepository {
